@@ -323,6 +323,22 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
   z-index:81;box-shadow:0 8px 24px rgba(255,69,54,.5);display:none}
 .update-banner.on{display:block}
 
+/* ============ FAVORITES / HEARTS ============ */
+.card .heartbtn{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;background:rgba(20,18,26,.7);backdrop-filter:blur(4px);display:grid;place-items:center;font-size:16px;color:#8a8394;border:1px solid rgba(255,255,255,.05);transition:transform .1s,color .15s}
+.card .heartbtn.on{color:var(--hot)}
+.card .heartbtn:active{transform:scale(.8)}
+.segbar{display:flex;gap:8px;margin-bottom:15px}
+.segbar .seg{flex:1;padding:11px;border-radius:11px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-weight:700;font-size:14px;transition:all .12s}
+.segbar .seg.on{background:var(--surface-3);color:var(--ink);border-color:var(--surface-3)}
+.segbar .seg .hh{color:var(--hot)}
+.detail-titlerow{display:flex;align-items:flex-start;gap:12px}
+.detail-titlerow .detail-title{flex:1;margin-bottom:8px}
+.detheart{flex:none;width:46px;height:46px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:23px;color:#8a8394;transition:transform .1s,color .15s}
+.detheart.on{color:var(--hot)}
+.detheart:active{transform:scale(.9)}
+.favtoggle{display:inline-flex;align-items:center;gap:7px;padding:12px 16px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-weight:700;font-size:15px;transition:all .12s}
+.favtoggle.on{background:rgba(255,69,54,.14);border-color:rgba(255,69,54,.4);color:var(--hot)}
+
 /* ============ CODES ============ */
 #codesBody{padding-bottom:76px}
 .addcode{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:22px;display:flex;flex-direction:column;gap:10px}
@@ -429,7 +445,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-05-C';
+const APP_BUILD = '2026-09-05-D';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
 
 /* ---------- tiny IndexedDB kv store ---------- */
@@ -443,8 +459,8 @@ async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{
   const t=db.transaction(STORE,'readwrite').objectStore(STORE).put(v,k);t.onsuccess=()=>res();t.onerror=()=>rej(t.error);});}
 
 /* ---------- state ---------- */
-let S = { shirts:[], tags:[], codes:[], settings:{ staleDays:30 }, updatedAt:0, clientId:rid() };
-const UI = { view:'closet', filterTags:[], search:'', wornFlash:{} };
+let S = { shirts:[], tags:[], codes:[], settings:{ staleDays:30, repeatWarnDays:7 }, updatedAt:0, clientId:rid() };
+const UI = { view:'closet', filterTags:[], search:'', wornFlash:{}, favOnly:false };
 
 function rid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function now(){return Date.now();}
@@ -461,7 +477,7 @@ function scheduleSave(sync=true){clearTimeout(saveTimer);saveTimer=setTimeout(()
 
 async function boot(){
   const saved = await idbGet('state');
-  if(saved && saved.shirts){ S = Object.assign(S, saved); if(!S.settings) S.settings={staleDays:30}; if(!S.clientId) S.clientId=rid(); if(!S.codes) S.codes=[]; }
+  if(saved && saved.shirts){ S = Object.assign(S, saved); if(!S.settings) S.settings={staleDays:30,repeatWarnDays:7}; if(!S.clientId) S.clientId=rid(); if(!S.codes) S.codes=[]; if(S.settings.repeatWarnDays===undefined) S.settings.repeatWarnDays=7; }
   loadSyncConfig();
   seedDefaultTags();
   render();
@@ -549,7 +565,10 @@ function clearFilter(){ UI.filterTags=[]; render(); }
 /* ---- CLOSET ---- */
 function renderCloset(){
   const body=document.getElementById('closetBody');
-  const list=visibleShirts().sort((a,b)=> (b.rating||0)-(a.rating||0) || lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
+  let list=visibleShirts();
+  if(UI.favOnly) list=list.filter(s=>s.fav);
+  list.sort((a,b)=> (b.rating||0)-(a.rating||0) || lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
+  const favCount=S.shirts.filter(s=>s.fav).length;
   document.getElementById('closetCount').textContent = S.shirts.length ? `${list.length} of ${S.shirts.length}` : '';
   if(!S.shirts.length){
     body.innerHTML=`<div class="empty"><span class="big">👕</span><h3>Your closet is empty</h3>
@@ -557,8 +576,25 @@ function renderCloset(){
       <button class="form-save" style="max-width:240px;margin:0 auto" onclick="openForm()">Add a shirt</button></div>`;
     return;
   }
-  if(!list.length){ body.innerHTML=`<div class="empty"><span class="big">🔍</span><h3>No matches</h3><p>Nothing fits those filters. Try clearing them.</p></div>`; return; }
-  body.innerHTML=`<div class="grid">`+list.map(cardHtml).join('')+`</div>`;
+  const seg=`<div class="segbar">
+      <button class="seg ${!UI.favOnly?'on':''}" onclick="setFavOnly(false)">All</button>
+      <button class="seg ${UI.favOnly?'on':''}" onclick="setFavOnly(true)"><span class="hh">♥</span> Favorites${favCount?` (${favCount})`:''}</button>
+    </div>`;
+  let inner;
+  if(UI.favOnly && !list.length){ inner=`<div class="empty"><span class="big" style="color:var(--hot)">♥</span><h3>No favorites yet</h3><p>Tap the ♥ on any shirt to add it to your favorites.</p></div>`; }
+  else if(!list.length){ inner=`<div class="empty"><span class="big">🔍</span><h3>No matches</h3><p>Nothing fits those filters. Try clearing them.</p></div>`; }
+  else inner=`<div class="grid">`+list.map(cardHtml).join('')+`</div>`;
+  body.innerHTML=seg+inner;
+}
+function setFavOnly(v){ UI.favOnly=v; renderCloset(); }
+function toggleFav(id,btn,fromDetail){
+  const s=S.shirts.find(x=>x.id===id); if(!s) return;
+  s.fav=!s.fav;
+  scheduleSave();
+  if(navigator.vibrate) navigator.vibrate(8);
+  if(btn) btn.classList.toggle('on', s.fav);
+  toast(s.fav?'♥ Added to favorites':'Removed from favorites', s.fav);
+  if(UI.view==='closet') renderCloset();
 }
 function cardHtml(s){
   const done=UI.wornFlash[s.id]||wornToday(s);
@@ -568,6 +604,7 @@ function cardHtml(s){
   const star = s.rating? `<div class="starband">★ ${s.rating}</div>`:'';
   return `<div class="card" onclick="openDetail('${s.id}')">
     <div class="ph">${ph}${star}
+      <button class="heartbtn ${s.fav?'on':''}" onclick="event.stopPropagation();toggleFav('${s.id}',this)" aria-label="Favorite">♥</button>
       <button class="quick ${done?'done':''}" onclick="event.stopPropagation();quickWear('${s.id}',this)" aria-label="Wore today">${done?'✓':'👕'}</button>
     </div>
     <div class="meta">
@@ -620,6 +657,13 @@ function quickWear(id,btn){
     UI.wornFlash[id]=false;
     toast('Removed today\'s wear');
   }else{
+    const warn=S.settings.repeatWarnDays;
+    if(warn>0){
+      const lw=lastWorn(s);
+      if(lw && daysSince(lw)<=warn){
+        if(!confirm(`Heads up — you wore "${s.name||'this'}" ${relWorn(s).toLowerCase()} (${fmtDate(lw)}).\n\nWear it again today?`)) return;
+      }
+    }
     s.wears.push(now());
     UI.wornFlash[id]=true;
     toast('👕 Wearing '+(s.name||'this')+' today', true);
@@ -649,7 +693,10 @@ function renderDetail(id){
 
   scroll.innerHTML = `
     ${hero}
-    <div class="detail-title">${escHtml(s.name||'Untitled')}</div>
+    <div class="detail-titlerow">
+      <div class="detail-title">${escHtml(s.name||'Untitled')}</div>
+      <button class="detheart ${s.fav?'on':''}" onclick="toggleFav('${s.id}',this,true)" aria-label="Favorite">♥</button>
+    </div>
     <div class="stars">${stars}</div>
     ${tags}
     ${notes}
@@ -723,8 +770,11 @@ function openForm(id){
       <input type="text" id="f-name" placeholder="e.g. Haunted Mansion Wallpaper" value="${s?escAttr(s.name):''}" oninput="validateForm()">
     </div>
     <div class="field">
-      <label>Rating</label>
-      <div class="rate-edit" id="f-rate">${[1,2,3,4,5].map(n=>`<span class="s ${s&&n<=(s.rating||0)?'on':''}" data-n="${n}" onclick="formRate(${n})">★</span>`).join('')}</div>
+      <label>Rating &amp; favorite</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div class="rate-edit" id="f-rate">${[1,2,3,4,5].map(n=>`<span class="s ${s&&n<=(s.rating||0)?'on':''}" data-n="${n}" onclick="formRate(${n})">★</span>`).join('')}</div>
+        <button type="button" class="favtoggle ${s&&s.fav?'on':''}" id="f-fav" onclick="this.classList.toggle('on')">♥ Favorite</button>
+      </div>
     </div>
     <div class="field">
       <label>Tags</label>
@@ -775,14 +825,15 @@ function saveShirt(){
   const name=(document.getElementById('f-name').value||'').trim(); if(!name) return;
   const notes=document.getElementById('f-notes').value||'';
   const tags=currentFormTags();
+  const fav=document.getElementById('f-fav').classList.contains('on');
   const rating = formRating || (formEditId? (S.shirts.find(x=>x.id===formEditId)||{}).rating||0 : 0);
   if(formEditId){
     const s=S.shirts.find(x=>x.id===formEditId);
-    s.name=name; s.notes=notes; s.tags=tags; s.rating=formRating||s.rating||0;
+    s.name=name; s.notes=notes; s.tags=tags; s.rating=formRating||s.rating||0; s.fav=fav;
     if(formPhoto!==undefined){ s.photo=formPhoto||''; queuePhotoPush(s.id); }
     toast('Saved');
   }else{
-    const s={ id:rid(), name, notes, tags, rating:formRating||0, photo:formPhoto||'', wears:[], createdAt:now() };
+    const s={ id:rid(), name, notes, tags, rating:formRating||0, fav, photo:formPhoto||'', wears:[], createdAt:now() };
     S.shirts.push(s); queuePhotoPush(s.id);
     toast('👕 Added to closet', true);
   }
@@ -834,6 +885,10 @@ function renderSettings(){
         <div class="lft"><div class="t">Flag shirts after</div><div class="d">Days unworn before a shirt is called out in Rotation</div></div>
         <input class="num" type="number" min="3" max="365" value="${S.settings.staleDays}" onchange="setStale(this.value)">
       </div>
+      <div class="setrow">
+        <div class="lft"><div class="t">Repeat-wear check</div><div class="d">Ask "wear it again?" if you wore it within this many days (0 = off)</div></div>
+        <input class="num" type="number" min="0" max="90" value="${S.settings.repeatWarnDays}" onchange="setRepeatWarn(this.value)">
+      </div>
     </div>
 
     <div class="setgroup">
@@ -866,6 +921,7 @@ function renderSettings(){
 }
 function totalWears(){ return S.shirts.reduce((n,s)=>n+wearCount(s),0); }
 function setStale(v){ v=Math.max(3,Math.min(365,parseInt(v)||30)); S.settings.staleDays=v; scheduleSave(); }
+function setRepeatWarn(v){ v=Math.max(0,Math.min(90,parseInt(v)||0)); S.settings.repeatWarnDays=v; scheduleSave(); }
 function deleteTag(t){
   if(!confirm(`Delete the tag “${t}”? It will be removed from every shirt.`)) return;
   S.tags=S.tags.filter(x=>x!==t);
