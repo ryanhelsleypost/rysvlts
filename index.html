@@ -366,6 +366,30 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 .ccicon.del{color:var(--hot)}
 .usedpill{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);padding:5px 9px;border-radius:999px}
 
+/* ============ BULK IMPORT ============ */
+.empty .bulk-entry{display:block;margin:12px auto 0;padding:12px 20px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:14.5px;max-width:280px;width:100%}
+.bulkloading{text-align:center;padding:70px 20px;color:var(--muted)}
+.bulkloading h3{color:var(--ink);font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em;margin:16px 0 6px}
+.bulkloading .spinner{width:42px;height:42px;border-radius:50%;border:4px solid var(--surface-3);border-top-color:var(--hot);margin:0 auto;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bulkhead{margin:4px 2px 14px}
+.bulkhead h2{font-family:'Anton',sans-serif;font-weight:400;font-size:24px;letter-spacing:.02em}
+.bulkhead p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.5}
+.bulkrow{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px;margin-bottom:11px}
+.bulkthumb{width:74px;height:74px;border-radius:11px;object-fit:cover;flex:none;background:var(--surface-2)}
+.bulkfields{flex:1;min-width:0}
+.bulkname{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 12px;outline:none;font-weight:600}
+.bulkname:focus{border-color:var(--hot)}
+.bulkrowsub{display:flex;align-items:center;gap:7px;margin-top:9px}
+.bulkrowsub .bstars{display:flex;gap:3px;font-size:21px;color:var(--surface-3);flex:1}
+.bulkrowsub .bstars .s.on{color:var(--gold)}
+.bulkrowsub .bfav,.bulkrowsub .bdel{width:38px;height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;flex:none}
+.bulkrowsub .bfav{font-size:16px;color:#8a8394}.bulkrowsub .bfav.on{color:var(--hot)}
+.bulkrowsub .bdel{font-size:14px;color:var(--muted)}
+.bulkfoot{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(20,18,26,0),var(--bg) 32%);padding:16px 0 6px;margin-top:2px}
+.bulkfoot button{width:100%;padding:16px;border-radius:14px;background:var(--hot);color:#fff;font-size:16.5px;font-weight:800;transition:transform .1s}
+.bulkfoot button:active{transform:scale(.98)}
+
 /* splash */
 #splash{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;transition:opacity .4s}
 #splash.gone{opacity:0;pointer-events:none}
@@ -439,13 +463,14 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 <div class="update-banner" id="updateBanner" onclick="location.href=location.pathname+'?v='+Date.now()">↻ Update ready — tap to refresh</div>
 
 <input type="file" id="photoInput" accept="image/*" style="display:none">
+<input type="file" id="bulkInput" accept="image/*" multiple style="display:none">
 
 <script>
 /* =====================================================================
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-05-D';
+const APP_BUILD = '2026-09-05-E';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
 
 /* ---------- tiny IndexedDB kv store ---------- */
@@ -572,8 +597,9 @@ function renderCloset(){
   document.getElementById('closetCount').textContent = S.shirts.length ? `${list.length} of ${S.shirts.length}` : '';
   if(!S.shirts.length){
     body.innerHTML=`<div class="empty"><span class="big">👕</span><h3>Your closet is empty</h3>
-      <p>Add your first RSVLTS shirt — snap a photo, tag it, and start tracking when you wear it.</p>
-      <button class="form-save" style="max-width:240px;margin:0 auto" onclick="openForm()">Add a shirt</button></div>`;
+      <p>Add shirts one at a time, or drop in a whole batch of photos and name them together.</p>
+      <button class="form-save" style="max-width:240px;margin:0 auto" onclick="openForm()">Add a shirt</button>
+      <button class="bulk-entry" onclick="bulkPick()">＋ Add several from photos</button></div>`;
     return;
   }
   const seg=`<div class="segbar">
@@ -871,6 +897,70 @@ function resizeImage(file,maxDim,quality){
 }
 
 /* =====================================================================
+   BULK IMPORT  (one-shot mass onboarding)
+   ===================================================================== */
+let bulkDrafts=[];
+function bulkPick(){ document.getElementById('bulkInput').click(); }
+document.getElementById('bulkInput').addEventListener('change', function(e){
+  const files=e.target.files; e.target.value='';
+  if(files && files.length) startBulkImport(files);
+});
+async function startBulkImport(files){
+  bulkDrafts=[];
+  const arr=Array.from(files);
+  openSheet();
+  const scroll=document.getElementById('sheetScroll');
+  for(let i=0;i<arr.length;i++){
+    scroll.innerHTML=`<div class="bulkloading"><div class="spinner"></div><h3>Processing photos…</h3><p>${i+1} of ${arr.length}</p></div>`;
+    try{ const b64=await resizeImage(arr[i],1000,0.72); bulkDrafts.push({id:rid(),photo:b64,name:'',rating:0,fav:false}); }
+    catch(err){}
+    await new Promise(r=>setTimeout(r,0));
+  }
+  renderBulkReview();
+}
+function renderBulkReview(){
+  const scroll=document.getElementById('sheetScroll');
+  if(!bulkDrafts.length){ closeSheet(); return; }
+  const rows=bulkDrafts.map(d=>`
+    <div class="bulkrow" id="brow-${d.id}">
+      <img class="bulkthumb" src="${d.photo}" alt="">
+      <div class="bulkfields">
+        <input class="bulkname" placeholder="Name this shirt" value="${escAttr(d.name)}" oninput="bulkSetName('${d.id}',this.value)">
+        <div class="bulkrowsub">
+          <div class="bstars">${[1,2,3,4,5].map(n=>`<span class="s ${n<=d.rating?'on':''}" onclick="bulkSetRating('${d.id}',${n})">★</span>`).join('')}</div>
+          <button class="bfav ${d.fav?'on':''}" onclick="bulkToggleFav('${d.id}',this)" aria-label="Favorite">♥</button>
+          <button class="bdel" onclick="bulkRemove('${d.id}')" aria-label="Remove">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+  const n=bulkDrafts.length;
+  scroll.innerHTML=`
+    <div class="bulkhead">
+      <h2>Review ${n} new shirt${n!==1?'s':''}</h2>
+      <p>Name each one now, or leave it blank and fill in later. Tags and notes can be added to any shirt afterward by tapping it.</p>
+    </div>
+    ${rows}
+    <div class="bulkfoot"><button onclick="commitBulk()">Add ${n} shirt${n!==1?'s':''} to closet</button></div>`;
+}
+function bulkSetName(id,v){ const d=bulkDrafts.find(x=>x.id===id); if(d) d.name=v; }
+function bulkSetRating(id,n){ const d=bulkDrafts.find(x=>x.id===id); if(!d)return; d.rating=(d.rating===n)?0:n;
+  const row=document.getElementById('brow-'+id); if(row) row.querySelectorAll('.bstars .s').forEach((el,i)=>el.classList.toggle('on',(i+1)<=d.rating)); }
+function bulkToggleFav(id,btn){ const d=bulkDrafts.find(x=>x.id===id); if(!d)return; d.fav=!d.fav; if(btn) btn.classList.toggle('on',d.fav); }
+function bulkRemove(id){ bulkDrafts=bulkDrafts.filter(x=>x.id!==id); if(!bulkDrafts.length){ closeSheet(); return; } renderBulkReview(); }
+function commitBulk(){
+  if(!bulkDrafts.length){ closeSheet(); return; }
+  const n=bulkDrafts.length;
+  bulkDrafts.forEach(d=>{
+    const s={ id:rid(), name:(d.name||'').trim(), notes:'', tags:[], rating:d.rating||0, fav:!!d.fav, photo:d.photo||'', wears:[], createdAt:now() };
+    S.shirts.push(s); queuePhotoPush(s.id);
+  });
+  bulkDrafts=[];
+  persist();
+  closeSheet(); UI.view='closet'; UI.favOnly=false; window.scrollTo(0,0); render();
+  toast(`👕 Added ${n} shirt${n!==1?'s':''}`, true);
+}
+
+/* =====================================================================
    SETTINGS  (tags, backup, sync)
    ===================================================================== */
 function renderSettings(){
@@ -888,6 +978,10 @@ function renderSettings(){
       <div class="setrow">
         <div class="lft"><div class="t">Repeat-wear check</div><div class="d">Ask "wear it again?" if you wore it within this many days (0 = off)</div></div>
         <input class="num" type="number" min="0" max="90" value="${S.settings.repeatWarnDays}" onchange="setRepeatWarn(this.value)">
+      </div>
+      <div class="setrow">
+        <div class="lft"><div class="t">Bulk add from photos</div><div class="d">Pick a batch of photos at once, then name them all in one pass</div></div>
+        <button class="act" onclick="bulkPick()">Import</button>
       </div>
     </div>
 
