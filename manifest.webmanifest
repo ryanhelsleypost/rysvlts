@@ -1,0 +1,14 @@
+{
+  "name": "RYSVLTS",
+  "short_name": "RYSVLTS",
+  "description": "Catalog your RSVLTS shirts, tag and rate them, track when you last wore each one, and keep your discount codes handy.",
+  "start_url": "./?go=closet",
+  "display": "standalone",
+  "background_color": "#14121a",
+  "theme_color": "#14121a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

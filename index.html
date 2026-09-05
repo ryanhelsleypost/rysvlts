@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RYSVLTS</title>
+<meta name="theme-color" content="#14121a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RYSVLTS">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#14121a;          /* deep ink display wall */
+  --surface:#1e1b26;     /* raised card */
+  --surface-2:#2a2633;   /* chips / inputs */
+  --surface-3:#37323f;
+  --ink:#f4f0e6;         /* warm off-white text */
+  --muted:#a49daf;       /* secondary text */
+  --faint:#6f6879;
+  --gold:#ffc233;        /* favorites / stars */
+  --hot:#ff4536;         /* primary action / rotation alerts */
+  --hot-deep:#c9301f;
+  --amber:#ff9d2e;       /* getting stale */
+  --line:#302b3a;        /* hairline borders */
+  --ok:#3ecf8e;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.65);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:'Archivo',system-ui,-apple-system,sans-serif;
+  font-size:16px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(78px + var(--safe-b));
+  overscroll-behavior-y:none;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:-.01em}
+.wordmark{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.01em}
+::selection{background:var(--hot);color:#fff}
+
+/* ============ TOP BAR ============ */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:linear-gradient(180deg,#1a1722 0%, rgba(20,18,26,.92) 100%);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  padding:calc(10px + var(--safe-t)) 16px 10px;
+}
+.topbar-row{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0}
+.brand .mark{
+  font-family:'Anton',sans-serif;font-size:26px;line-height:1;
+  color:var(--ink);letter-spacing:.02em;
+}
+.brand .mark b{color:var(--hot);font-weight:400}
+.brand .sub{color:var(--muted);font-size:12.5px;font-weight:600;white-space:nowrap}
+.icon-btn{
+  width:42px;height:42px;border-radius:12px;background:var(--surface-2);
+  display:grid;place-items:center;font-size:19px;flex:none;
+  border:1px solid var(--line);transition:background .15s,transform .1s;
+}
+.icon-btn:active{transform:scale(.94);background:var(--surface-3)}
+.searchwrap{margin-top:10px;position:relative;display:none}
+.searchwrap.on{display:block}
+.searchwrap input{
+  width:100%;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--ink);border-radius:12px;padding:11px 14px 11px 40px;outline:none;
+}
+.searchwrap input::placeholder{color:var(--faint)}
+.searchwrap .mag{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--faint)}
+
+/* ============ TAG FILTER RAIL ============ */
+.filterrail{
+  display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.filterrail::-webkit-scrollbar{display:none}
+.filterrail:empty{display:none}
+.tagchip{
+  flex:none;padding:7px 13px;border-radius:999px;background:var(--surface-2);
+  border:1px solid var(--line);color:var(--muted);font-size:13.5px;font-weight:600;
+  white-space:nowrap;transition:all .12s;
+}
+.tagchip.on{background:var(--hot);border-color:var(--hot);color:#fff}
+.tagchip.mini{padding:4px 10px;font-size:12px}
+.filterrail .clearf{color:var(--hot);font-weight:700;padding:7px 6px;white-space:nowrap}
+
+/* ============ CONTENT ============ */
+main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
+#closetBody,#rotationBody{padding-bottom:76px}
+.viewhead{display:flex;align-items:flex-end;justify-content:space-between;margin:2px 2px 14px}
+.viewhead h2{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em}
+.viewhead .count{color:var(--muted);font-size:13px;font-weight:700}
+
+/* gallery grid */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:820px){.grid{grid-template-columns:repeat(4,1fr)}}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;position:relative;transition:transform .12s;
+}
+.card:active{transform:scale(.975)}
+.card .ph{
+  aspect-ratio:1/1;background:var(--surface-2);position:relative;overflow:hidden;
+  display:grid;place-items:center;
+}
+.card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.card .ph .noimg{color:var(--faint);font-size:34px}
+.card .starband{
+  position:absolute;top:8px;left:8px;background:rgba(20,18,26,.72);
+  backdrop-filter:blur(4px);border-radius:999px;padding:3px 8px;
+  font-size:12px;color:var(--gold);font-weight:800;letter-spacing:.5px;
+  display:flex;align-items:center;gap:2px;
+}
+.card .quick{
+  position:absolute;bottom:8px;right:8px;width:38px;height:38px;border-radius:50%;
+  background:var(--hot);color:#fff;display:grid;place-items:center;font-size:17px;
+  box-shadow:0 4px 12px rgba(255,69,54,.4);transition:transform .1s;
+}
+.card .quick:active{transform:scale(.85)}
+.card .quick.done{background:var(--ok);box-shadow:0 4px 12px rgba(62,207,142,.4)}
+.card .meta{padding:10px 11px 12px}
+.card .nm{font-weight:700;font-size:14.5px;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.card .worn{margin-top:5px;font-size:11.5px;font-weight:700;color:var(--muted);
+  display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+.dot.fresh{background:var(--ok)} .dot.mid{background:var(--amber)} .dot.stale{background:var(--hot)}
+
+/* empty state */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty .big{font-size:54px;margin-bottom:12px;filter:grayscale(.2)}
+.empty h3{color:var(--ink);font-family:'Anton',sans-serif;font-weight:400;font-size:24px;margin-bottom:6px;letter-spacing:.02em}
+.empty p{margin:0 auto 18px;max-width:280px;font-size:14px}
+
+/* ============ ROTATION LIST ============ */
+.rotrow{
+  display:flex;align-items:center;gap:13px;background:var(--surface);
+  border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px;
+  transition:transform .12s;
+}
+.rotrow:active{transform:scale(.99)}
+.rotrow .thumb{width:58px;height:58px;border-radius:11px;object-fit:cover;flex:none;background:var(--surface-2)}
+.rotrow .thumb.noimg{display:grid;place-items:center;color:var(--faint);font-size:22px}
+.rotrow .info{flex:1;min-width:0}
+.rotrow .info .nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rotrow .info .sinceline{font-size:12.5px;font-weight:700;margin-top:3px;color:var(--muted)}
+.rotrow .stamp{
+  flex:none;text-align:center;min-width:60px;padding:6px 8px;border-radius:11px;
+  background:var(--surface-2);border:1px solid var(--line);
+}
+.rotrow .stamp .num{font-family:'Anton',sans-serif;font-size:22px;line-height:1;color:var(--ink)}
+.rotrow .stamp .lab{font-size:9.5px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.rotrow.never .stamp{background:rgba(255,69,54,.14);border-color:rgba(255,69,54,.4)}
+.rotrow.never .stamp .num{color:var(--hot);font-size:15px;padding-top:3px}
+.rotrow.stale .stamp .num{color:var(--hot)}
+.rotrow.mid .stamp .num{color:var(--amber)}
+.rotrow .wearbtn{
+  flex:none;width:44px;height:44px;border-radius:12px;background:var(--hot);color:#fff;
+  display:grid;place-items:center;font-size:18px;transition:transform .1s;
+}
+.rotrow .wearbtn:active{transform:scale(.88)}
+.rotrow .wearbtn.done{background:var(--ok)}
+.rothint{color:var(--muted);font-size:13px;margin:-4px 2px 16px;line-height:1.5}
+
+/* ============ FAB ============ */
+.fab{
+  position:fixed;right:18px;bottom:calc(90px + var(--safe-b));z-index:45;
+  width:58px;height:58px;border-radius:18px;background:var(--hot);color:#fff;
+  display:grid;place-items:center;font-size:30px;font-weight:300;
+  box-shadow:0 10px 26px -6px rgba(255,69,54,.6);transition:transform .12s;
+}
+.fab:active{transform:scale(.9)}
+
+/* ============ BOTTOM NAV ============ */
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;z-index:44;
+  background:rgba(26,23,34,.94);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  display:flex;padding:8px 8px calc(8px + var(--safe-b));
+}
+.navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 0;color:var(--faint);font-size:11px;font-weight:700;transition:color .12s}
+.navbtn .ic{font-size:21px;line-height:1}
+.navbtn.on{color:var(--ink)}
+.navbtn.on .ic{filter:drop-shadow(0 0 8px rgba(255,69,54,.5))}
+
+/* ============ DETAIL / MODAL SHEET ============ */
+.sheet-backdrop{
+  position:fixed;inset:0;z-index:60;background:rgba(8,7,11,.66);
+  backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.sheet-backdrop.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:61;max-height:94vh;
+  background:var(--bg);border-radius:22px 22px 0 0;border-top:1px solid var(--line);
+  transform:translateY(100%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.5);
+}
+.sheet.on{transform:translateY(0)}
+.sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--surface-3);margin:10px auto 4px;flex:none}
+.sheet .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 18px calc(26px + var(--safe-b))}
+@media(min-width:640px){
+  .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-46%) scale(.98);
+    width:560px;max-height:90vh;border-radius:22px;opacity:0}
+  .sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1}
+}
+
+/* detail internals */
+.detail-hero{width:100%;aspect-ratio:1/1;border-radius:16px;object-fit:cover;
+  background:var(--surface-2);display:block;margin-bottom:14px}
+.detail-hero.noimg{display:grid;place-items:center;color:var(--faint);font-size:60px}
+.detail-title{font-family:'Anton',sans-serif;font-weight:400;font-size:26px;line-height:1.05;letter-spacing:.01em;margin-bottom:8px}
+.stars{display:flex;gap:4px;font-size:26px;color:var(--surface-3)}
+.stars .s.on{color:var(--gold)}
+.stars .s{transition:transform .1s}.stars .s:active{transform:scale(1.2)}
+.detail-tags{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.detail-tags .tagchip{pointer-events:none}
+.notes{color:var(--muted);font-size:14.5px;line-height:1.55;white-space:pre-wrap;margin:6px 0 4px}
+.wear-cta{
+  width:100%;margin:18px 0 6px;padding:16px;border-radius:15px;background:var(--hot);
+  color:#fff;font-size:17px;font-weight:800;letter-spacing:.01em;
+  display:flex;align-items:center;justify-content:center;gap:9px;transition:transform .1s,background .15s;
+}
+.wear-cta:active{transform:scale(.98)}
+.wear-cta.done{background:var(--ok)}
+.lastworn-line{text-align:center;color:var(--muted);font-size:13.5px;font-weight:600;margin-bottom:6px}
+.statrow{display:flex;gap:10px;margin:14px 0 4px}
+.stat{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px;text-align:center}
+.stat .n{font-family:'Anton',sans-serif;font-weight:400;font-size:24px}
+.stat .l{font-size:10.5px;font-weight:800;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.history{margin-top:16px}
+.history h4{font-size:12px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.histrow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)}
+.histrow:last-child{border-bottom:none}
+.histrow .hd{font-weight:600;font-size:14px}
+.histrow .hx{color:var(--faint);font-size:18px;padding:2px 6px}
+.detail-actions{display:flex;gap:10px;margin-top:20px}
+.detail-actions button{flex:1;padding:13px;border-radius:12px;font-weight:700;font-size:14.5px;border:1px solid var(--line);background:var(--surface-2)}
+.detail-actions .del{color:var(--hot);border-color:rgba(255,69,54,.35)}
+
+/* ============ FORM ============ */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;font-weight:800;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
+.field input[type=text],.field textarea{
+  width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);
+  border-radius:12px;padding:13px 14px;outline:none;transition:border .15s;
+}
+.field input:focus,.field textarea:focus{border-color:var(--hot)}
+.field textarea{resize:vertical;min-height:78px;line-height:1.5}
+.photo-pick{
+  width:100%;aspect-ratio:16/11;border-radius:14px;border:1.5px dashed var(--surface-3);
+  background:var(--surface);display:grid;place-items:center;overflow:hidden;position:relative;color:var(--muted);
+}
+.photo-pick img{width:100%;height:100%;object-fit:cover}
+.photo-pick .plc{text-align:center}.photo-pick .plc .e{font-size:40px;display:block;margin-bottom:6px}
+.photo-pick .change{position:absolute;bottom:10px;right:10px;background:rgba(20,18,26,.82);
+  padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:700;backdrop-filter:blur(4px)}
+.tag-editor{display:flex;flex-wrap:wrap;gap:8px}
+.tag-editor .tagchip.sel{background:var(--hot);border-color:var(--hot);color:#fff}
+.tag-add{display:flex;gap:8px;margin-top:10px}
+.tag-add input{flex:1;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;outline:none}
+.tag-add button{padding:0 16px;border-radius:10px;background:var(--surface-3);font-weight:800;font-size:20px}
+.rate-edit{display:flex;gap:6px;font-size:34px;color:var(--surface-3)}
+.rate-edit .s.on{color:var(--gold)}
+.rate-edit .s:active{transform:scale(1.15)}
+.form-save{
+  width:100%;margin-top:8px;padding:16px;border-radius:14px;background:var(--hot);color:#fff;
+  font-size:16.5px;font-weight:800;transition:transform .1s}
+.form-save:active{transform:scale(.98)}
+.form-save[disabled]{background:var(--surface-3);color:var(--faint)}
+
+/* ============ SETTINGS ============ */
+.setgroup{background:var(--surface);border:1px solid var(--line);border-radius:15px;margin-bottom:16px;overflow:hidden}
+.setgroup h3{font-size:12.5px;font-weight:800;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;padding:14px 16px 6px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-top:1px solid var(--line)}
+.setrow:first-of-type{border-top:none}
+.setrow .lft{min-width:0}
+.setrow .t{font-weight:700;font-size:15px}
+.setrow .d{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.setrow .go{color:var(--faint);font-size:16px;flex:none}
+.setrow button.act{padding:9px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:13.5px;flex:none}
+.setrow input.num{width:70px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px;text-align:center;font-weight:700}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}
+.pill.on{background:rgba(62,207,142,.16);color:var(--ok)}
+.pill.off{background:var(--surface-2);color:var(--muted)}
+.tagmanage{display:flex;flex-wrap:wrap;gap:8px;padding:4px 16px 16px}
+.tagmanage .tm{display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:6px 8px 6px 13px;font-size:13px;font-weight:600}
+.tagmanage .tm b{font-weight:700}.tagmanage .tm .c{color:var(--faint);font-weight:700}
+.tagmanage .tm button{color:var(--hot);font-size:15px;width:20px;height:20px;display:grid;place-items:center}
+
+/* firebase config textarea */
+.cfgbox{width:100%;min-height:130px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);
+  border-radius:12px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5;outline:none;resize:vertical}
+.help{font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 2px}
+.help code{background:var(--surface-2);padding:1px 6px;border-radius:5px;font-size:12px}
+
+/* ============ TOAST + BANNER ============ */
+.toast{
+  position:fixed;left:50%;bottom:calc(96px + var(--safe-b));transform:translateX(-50%) translateY(20px);
+  background:var(--surface-3);color:var(--ink);padding:12px 20px;border-radius:999px;
+  font-weight:700;font-size:14px;z-index:80;opacity:0;pointer-events:none;transition:all .25s;
+  box-shadow:var(--shadow);white-space:nowrap;border:1px solid var(--line);
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.good{background:#1c3a2c;border-color:rgba(62,207,142,.4)}
+.update-banner{
+  position:fixed;left:50%;bottom:calc(96px + var(--safe-b));transform:translateX(-50%);
+  background:var(--hot);color:#fff;padding:12px 20px;border-radius:999px;font-weight:800;font-size:14px;
+  z-index:81;box-shadow:0 8px 24px rgba(255,69,54,.5);display:none}
+.update-banner.on{display:block}
+
+/* ============ CODES ============ */
+#codesBody{padding-bottom:76px}
+.addcode{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:22px;display:flex;flex-direction:column;gap:10px}
+.addcode input{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:12px 13px;outline:none;transition:border .15s}
+.addcode input:focus{border-color:var(--hot)}
+.addcode #code-in{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:1.5px;font-size:16px}
+.addcode #code-in::placeholder{font-family:'Archivo',sans-serif;font-weight:400;letter-spacing:0}
+.addcode-btn{background:var(--hot);color:#fff;border-radius:11px;padding:13px;font-weight:800;font-size:15px;transition:transform .1s}
+.addcode-btn:active{transform:scale(.98)}
+.codesec-label{font-size:12px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin:6px 2px 11px}
+.codesec-label.used{margin-top:24px}
+.codesec-empty{color:var(--faint);font-size:14px;padding:2px 2px 6px}
+.codecard{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:11px}
+.codecard.used{opacity:.6}
+.codecard .ccmain{flex:1;min-width:0}
+.codecard .thecode{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:19px;letter-spacing:1.5px;color:var(--ink);word-break:break-all;line-height:1.2}
+.codecard .thecode.struck{text-decoration:line-through;color:var(--muted)}
+.codecard .cclabel{font-size:12.5px;color:var(--muted);margin-top:5px;font-weight:600;line-height:1.3}
+.codecard .ccside{display:flex;align-items:center;gap:7px;flex:none}
+.copybtn{background:var(--surface-3);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:11px 15px;font-weight:800;font-size:14px;transition:transform .1s,background .12s}
+.copybtn:active{transform:scale(.92)}
+.ccicon{width:38px;height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:15px;transition:transform .1s}
+.ccicon:active{transform:scale(.9)}
+.ccicon.check{color:var(--ok);font-size:17px}
+.ccicon.del{color:var(--hot)}
+.usedpill{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);padding:5px 9px;border-radius:999px}
+
+/* splash */
+#splash{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;transition:opacity .4s}
+#splash.gone{opacity:0;pointer-events:none}
+#splash .s-mark{font-family:'Anton',sans-serif;font-size:40px;letter-spacing:.03em;color:var(--ink)}
+#splash .s-mark b{color:var(--hot);font-weight:400}
+.view{display:none}.view.on{display:block}
+</style>
+</head>
+<body>
+<div id="splash"><div class="s-mark"><b>RY</b>SVLTS</div></div>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div class="brand">
+      <span class="mark"><b>RY</b>SVLTS</span>
+    </div>
+    <button class="icon-btn" id="searchToggle" aria-label="Search">🔍</button>
+  </div>
+  <div class="searchwrap" id="searchWrap">
+    <span class="mag">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search shirts, tags, notes…" autocomplete="off">
+  </div>
+</div>
+
+<div class="filterrail" id="filterRail"></div>
+
+<main>
+  <!-- CLOSET -->
+  <section class="view on" id="view-closet">
+    <div class="viewhead"><h2>The Closet</h2><span class="count" id="closetCount"></span></div>
+    <div id="closetBody"></div>
+  </section>
+
+  <!-- ROTATION -->
+  <section class="view" id="view-rotation">
+    <div class="viewhead"><h2>Bring to the Front</h2><span class="count" id="rotationCount"></span></div>
+    <p class="rothint" id="rotHint"></p>
+    <div id="rotationBody"></div>
+  </section>
+
+  <!-- CODES -->
+  <section class="view" id="view-codes">
+    <div class="viewhead"><h2>Discount Codes</h2><span class="count" id="codesCount"></span></div>
+    <div id="codesBody"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <div class="viewhead"><h2>Settings</h2></div>
+    <div id="settingsBody"></div>
+  </section>
+</main>
+
+<button class="fab" id="fab" aria-label="Add shirt">+</button>
+
+<nav class="bottomnav">
+  <button class="navbtn on" data-view="closet"><span class="ic">👕</span>Closet</button>
+  <button class="navbtn" data-view="rotation"><span class="ic">🔄</span>Rotation</button>
+  <button class="navbtn" data-view="codes"><span class="ic">🎟️</span>Codes</button>
+  <button class="navbtn" data-view="settings"><span class="ic">⚙️</span>Settings</button>
+</nav>
+
+<!-- SHEET (detail / form / etc) -->
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <div class="scroll" id="sheetScroll"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="update-banner" id="updateBanner" onclick="location.reload()">↻ Update ready — tap to refresh</div>
+
+<input type="file" id="photoInput" accept="image/*" style="display:none">
+
+<script>
+/* =====================================================================
+   IN ROTATION — RSVLTS shirt catalog
+   Build stamp drives the update banner.
+   ===================================================================== */
+const APP_BUILD = '2026-09-05-B';
+
+/* ---------- tiny IndexedDB kv store ---------- */
+const DB_NAME='rysvltsDB', STORE='kv';
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{
+  const t=db.transaction(STORE).objectStore(STORE).get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error);});}
+async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{
+  const t=db.transaction(STORE,'readwrite').objectStore(STORE).put(v,k);t.onsuccess=()=>res();t.onerror=()=>rej(t.error);});}
+
+/* ---------- state ---------- */
+let S = { shirts:[], tags:[], codes:[], settings:{ staleDays:30 }, updatedAt:0, clientId:rid() };
+const UI = { view:'closet', filterTags:[], search:'', wornFlash:{} };
+
+function rid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
+function now(){return Date.now();}
+function todayKey(ts=now()){const d=new Date(ts);return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+
+/* ---------- persistence ---------- */
+let saveTimer=null;
+async function persist(sync=true){
+  S.updatedAt=now();
+  await idbSet('state', S);
+  if(sync) queueSyncPush();
+}
+function scheduleSave(sync=true){clearTimeout(saveTimer);saveTimer=setTimeout(()=>persist(sync),400);}
+
+async function boot(){
+  const saved = await idbGet('state');
+  if(saved && saved.shirts){ S = Object.assign(S, saved); if(!S.settings) S.settings={staleDays:30}; if(!S.clientId) S.clientId=rid(); if(!S.codes) S.codes=[]; }
+  loadSyncConfig();
+  render();
+  setTimeout(()=>document.getElementById('splash').classList.add('gone'),350);
+  if(SYNC.enabled) syncStart();
+  scheduleUpdateCheck();
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+function render(){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id==='view-'+UI.view));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('on', b.dataset.view===UI.view));
+  const shirtView = (UI.view==='closet'||UI.view==='rotation');
+  document.getElementById('fab').style.display = shirtView ? 'grid':'none';
+  document.getElementById('searchToggle').style.display = shirtView ? 'grid':'none';
+  if(!shirtView){ const w=document.getElementById('searchWrap'); if(w.classList.contains('on')){ w.classList.remove('on'); document.getElementById('searchInput').value=''; UI.search=''; } }
+  renderFilterRail();
+  if(UI.view==='closet') renderCloset();
+  else if(UI.view==='rotation') renderRotation();
+  else if(UI.view==='codes') renderCodes();
+  else renderSettings();
+}
+function go(view){ UI.view=view; window.scrollTo(0,0); render(); }
+
+/* ---- helpers ---- */
+function lastWorn(sh){ return sh.wears&&sh.wears.length ? Math.max(...sh.wears) : 0; }
+function wearCount(sh){ return sh.wears? sh.wears.length : 0; }
+function daysSince(ts){ if(!ts) return Infinity; return Math.floor((now()-ts)/86400000); }
+function wornToday(sh){ const t=todayKey(); return (sh.wears||[]).some(w=>todayKey(w)===t); }
+function freshnessClass(sh){
+  const d=daysSince(lastWorn(sh)); const stale=S.settings.staleDays;
+  if(!lastWorn(sh)) return 'stale';
+  if(d>=stale) return 'stale'; if(d>=Math.round(stale/2)) return 'mid'; return 'fresh';
+}
+function relWorn(sh){
+  const lw=lastWorn(sh); if(!lw) return 'Never worn';
+  const d=daysSince(lw);
+  if(d===0) return 'Worn today'; if(d===1) return 'Worn yesterday';
+  if(d<7) return d+' days ago'; if(d<14) return 'Last week';
+  if(d<60) return Math.floor(d/7)+' weeks ago';
+  return Math.floor(d/30)+' months ago';
+}
+function starStr(n){ return '★'.repeat(n); }
+
+function visibleShirts(){
+  let list=S.shirts.slice();
+  if(UI.filterTags.length) list=list.filter(s=>UI.filterTags.every(t=>(s.tags||[]).includes(t)));
+  if(UI.search.trim()){
+    const q=UI.search.toLowerCase();
+    list=list.filter(s=> (s.name||'').toLowerCase().includes(q)
+      || (s.notes||'').toLowerCase().includes(q)
+      || (s.tags||[]).some(t=>t.toLowerCase().includes(q)) );
+  }
+  return list;
+}
+
+function renderFilterRail(){
+  const rail=document.getElementById('filterRail');
+  if(!(UI.view==='closet'||UI.view==='rotation')||!S.tags.length){ rail.innerHTML=''; return; }
+  let h='';
+  if(UI.filterTags.length) h+=`<button class="clearf" onclick="clearFilter()">Clear</button>`;
+  S.tags.forEach(t=>{
+    const on=UI.filterTags.includes(t);
+    h+=`<button class="tagchip ${on?'on':''}" onclick="toggleFilter('${esc(t)}')">${escHtml(t)}</button>`;
+  });
+  rail.innerHTML=h;
+}
+function toggleFilter(t){ const i=UI.filterTags.indexOf(t); if(i<0)UI.filterTags.push(t); else UI.filterTags.splice(i,1); render(); }
+function clearFilter(){ UI.filterTags=[]; render(); }
+
+/* ---- CLOSET ---- */
+function renderCloset(){
+  const body=document.getElementById('closetBody');
+  const list=visibleShirts().sort((a,b)=> (b.rating||0)-(a.rating||0) || lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
+  document.getElementById('closetCount').textContent = S.shirts.length ? `${list.length} of ${S.shirts.length}` : '';
+  if(!S.shirts.length){
+    body.innerHTML=`<div class="empty"><span class="big">👕</span><h3>Your closet is empty</h3>
+      <p>Add your first RSVLTS shirt — snap a photo, tag it, and start tracking when you wear it.</p>
+      <button class="form-save" style="max-width:240px;margin:0 auto" onclick="openForm()">Add a shirt</button></div>`;
+    return;
+  }
+  if(!list.length){ body.innerHTML=`<div class="empty"><span class="big">🔍</span><h3>No matches</h3><p>Nothing fits those filters. Try clearing them.</p></div>`; return; }
+  body.innerHTML=`<div class="grid">`+list.map(cardHtml).join('')+`</div>`;
+}
+function cardHtml(s){
+  const done=UI.wornFlash[s.id]||wornToday(s);
+  const ph = s.photo
+    ? `<img src="${s.photo}" alt="" loading="lazy">`
+    : `<span class="noimg">👕</span>`;
+  const star = s.rating? `<div class="starband">★ ${s.rating}</div>`:'';
+  return `<div class="card" onclick="openDetail('${s.id}')">
+    <div class="ph">${ph}${star}
+      <button class="quick ${done?'done':''}" onclick="event.stopPropagation();quickWear('${s.id}',this)" aria-label="Wore today">${done?'✓':'👕'}</button>
+    </div>
+    <div class="meta">
+      <div class="nm">${escHtml(s.name||'Untitled')}</div>
+      <div class="worn"><span class="dot ${freshnessClass(s)}"></span>${relWorn(s)}</div>
+    </div></div>`;
+}
+
+/* ---- ROTATION (haven't worn recently) ---- */
+function renderRotation(){
+  const body=document.getElementById('rotationBody');
+  const hint=document.getElementById('rotHint');
+  if(!S.shirts.length){ hint.textContent=''; body.innerHTML=`<div class="empty"><span class="big">🔄</span><h3>Nothing to rotate yet</h3><p>Once you've added shirts and logged a few wears, the ones you've neglected show up here.</p></div>`; return; }
+  hint.textContent = `Longest-neglected first — never-worn shirts lead. Anything past ${S.settings.staleDays} days is flagged.`;
+  const list=visibleShirts().slice().sort((a,b)=> lastWorn(a)-lastWorn(b) || (a.createdAt||0)-(b.createdAt||0));
+  document.getElementById('rotationCount').textContent = S.shirts.length ? `${list.length} of ${S.shirts.length}` : '';
+  body.innerHTML=list.map(rotRowHtml).join('');
+}
+function rotRowHtml(s){
+  const lw=lastWorn(s); const d=daysSince(lw); const done=UI.wornFlash[s.id]||wornToday(s);
+  let cls='', numHtml,lab;
+  if(!lw){ cls='never'; numHtml=`Never<br>worn`; lab=''; }
+  else{ const stale=S.settings.staleDays;
+    cls = d>=stale?'stale': d>=Math.round(stale/2)?'mid':'';
+    numHtml = d; lab = d===1?'day':'days';
+  }
+  const thumb = s.photo? `<img class="thumb" src="${s.photo}" alt="">` : `<div class="thumb noimg">👕</div>`;
+  const sub = s.rating? `${starStr(s.rating)} · ` : '';
+  return `<div class="rotrow ${cls}">
+    ${thumb}
+    <div class="info" onclick="openDetail('${s.id}')">
+      <div class="nm">${escHtml(s.name||'Untitled')}</div>
+      <div class="sinceline" style="color:var(--gold)">${sub}<span style="color:var(--muted)">${(s.tags||[]).slice(0,2).map(escHtml).join(' · ')||'No tags'}</span></div>
+    </div>
+    <div class="stamp"><div class="num">${numHtml}</div>${lab?`<div class="lab">${lab} ago</div>`:''}</div>
+    <button class="wearbtn ${done?'done':''}" onclick="quickWear('${s.id}',this)" aria-label="Wore today">${done?'✓':'👕'}</button>
+  </div>`;
+}
+
+/* =====================================================================
+   WEAR LOGGING
+   ===================================================================== */
+function quickWear(id,btn){
+  const s=S.shirts.find(x=>x.id===id); if(!s) return;
+  if(!s.wears) s.wears=[];
+  const already=wornToday(s);
+  if(already){
+    // toggle today's wear off (undo mis-tap)
+    s.wears = s.wears.filter(w=>todayKey(w)!==todayKey());
+    UI.wornFlash[id]=false;
+    toast('Removed today\'s wear');
+  }else{
+    s.wears.push(now());
+    UI.wornFlash[id]=true;
+    toast('👕 Wearing '+(s.name||'this')+' today', true);
+    if(navigator.vibrate) navigator.vibrate(12);
+  }
+  scheduleSave();
+  // light refresh of just the button + current view
+  if(btn){ btn.classList.toggle('done', UI.wornFlash[id]); btn.textContent = UI.wornFlash[id]?'✓':'👕'; }
+  if(document.getElementById('sheet').classList.contains('on')) renderDetail(id);
+}
+
+/* =====================================================================
+   DETAIL SHEET
+   ===================================================================== */
+function openDetail(id){ renderDetail(id); openSheet(); }
+function renderDetail(id){
+  const s=S.shirts.find(x=>x.id===id); if(!s){closeSheet();return;}
+  const scroll=document.getElementById('sheetScroll');
+  const done=wornToday(s);
+  const hero = s.photo? `<img class="detail-hero" src="${s.photo}" alt="">` : `<div class="detail-hero noimg">👕</div>`;
+  const stars = [1,2,3,4,5].map(n=>`<span class="s ${n<=(s.rating||0)?'on':''}" onclick="setRating('${s.id}',${n})">★</span>`).join('');
+  const tags = (s.tags||[]).length ? `<div class="detail-tags">${s.tags.map(t=>`<span class="tagchip on mini">${escHtml(t)}</span>`).join('')}</div>` : '';
+  const notes = s.notes? `<div class="notes">${escHtml(s.notes)}</div>`:'';
+  const lw=lastWorn(s);
+  const hist = (s.wears||[]).slice().sort((a,b)=>b-a);
+  const histHtml = hist.length? hist.map(w=>`<div class="histrow"><span class="hd">${fmtDate(w)}</span><button class="hx" onclick="delWear('${s.id}',${w})">✕</button></div>`).join('') : `<div class="histrow"><span class="hd" style="color:var(--faint)">No wears logged yet</span></div>`;
+
+  scroll.innerHTML = `
+    ${hero}
+    <div class="detail-title">${escHtml(s.name||'Untitled')}</div>
+    <div class="stars">${stars}</div>
+    ${tags}
+    ${notes}
+    <button class="wear-cta ${done?'done':''}" onclick="quickWear('${s.id}',null);renderDetail('${s.id}')">
+      ${done?'✓ Worn today — tap to undo':'👕 I\'m wearing this today'}
+    </button>
+    <div class="lastworn-line">${lw?('Last worn '+relWorn(s).toLowerCase()+' · '+fmtDate(lw)):'You haven\'t worn this yet'}</div>
+    <div class="statrow">
+      <div class="stat"><div class="n">${wearCount(s)}</div><div class="l">Times worn</div></div>
+      <div class="stat"><div class="n">${lw?daysSince(lw):'—'}</div><div class="l">${lw?'Days since':'Never worn'}</div></div>
+      <div class="stat"><div class="n" style="color:var(--gold)">${s.rating||'—'}</div><div class="l">Rating</div></div>
+    </div>
+    <div class="history"><h4>Wear history</h4>${histHtml}</div>
+    <div class="detail-actions">
+      <button onclick="openForm('${s.id}')">✏️ Edit</button>
+      <button class="del" onclick="confirmDelete('${s.id}')">🗑 Delete</button>
+    </div>`;
+}
+function setRating(id,n){
+  const s=S.shirts.find(x=>x.id===id); if(!s)return;
+  s.rating = (s.rating===n)? 0 : n;   // tap same star to clear
+  scheduleSave(); renderDetail(id);
+}
+function delWear(id,ts){
+  const s=S.shirts.find(x=>x.id===id); if(!s)return;
+  s.wears=(s.wears||[]).filter(w=>w!==ts);
+  if(!wornToday(s)) UI.wornFlash[id]=false;
+  scheduleSave(); renderDetail(id);
+}
+function confirmDelete(id){
+  const s=S.shirts.find(x=>x.id===id); if(!s)return;
+  const scroll=document.getElementById('sheetScroll');
+  scroll.innerHTML=`<div style="padding:30px 6px;text-align:center">
+    <div style="font-size:46px;margin-bottom:10px">🗑</div>
+    <h3 style="font-family:'Anton';font-weight:400;font-size:24px;margin-bottom:8px">Delete this shirt?</h3>
+    <p style="color:var(--muted);margin:0 auto 22px;max-width:280px">“${escHtml(s.name||'Untitled')}” and its ${wearCount(s)} logged wear${wearCount(s)!==1?'s':''} will be removed. This can't be undone.</p>
+    <div class="detail-actions" style="max-width:340px;margin:0 auto">
+      <button onclick="renderDetail('${s.id}')">Keep it</button>
+      <button class="del" style="background:var(--hot);color:#fff;border-color:var(--hot)" onclick="doDelete('${s.id}')">Delete</button>
+    </div></div>`;
+}
+function doDelete(id){
+  const s=S.shirts.find(x=>x.id===id);
+  S.shirts=S.shirts.filter(x=>x.id!==id);
+  if(s&&s.photo) queuePhotoDelete(id);
+  scheduleSave(); closeSheet(); render(); toast('Shirt deleted');
+}
+
+/* =====================================================================
+   ADD / EDIT FORM
+   ===================================================================== */
+let formPhoto=null;      // pending base64 (undefined=unchanged, null=none)
+let formEditId=null;
+function openForm(id){
+  formEditId=id||null;
+  const s = id? S.shirts.find(x=>x.id===id) : null;
+  formPhoto = s? (s.photo||null) : null;
+  const scroll=document.getElementById('sheetScroll');
+  const selTags = s? (s.tags||[]).slice() : [];
+  scroll.dataset.selTags = JSON.stringify(selTags);
+  scroll.innerHTML = `
+    <h2 style="font-family:'Anton';font-weight:400;font-size:24px;letter-spacing:.02em;margin:4px 2px 18px">${s?'Edit shirt':'New shirt'}</h2>
+    <div class="field">
+      <label>Photo</label>
+      <div class="photo-pick" id="photoPick" onclick="pickPhoto()">
+        ${formPhoto?`<img id="photoPrev" src="${formPhoto}"><span class="change">Change</span>`:`<div class="plc"><span class="e">📷</span>Take a photo or choose one</div>`}
+      </div>
+    </div>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="f-name" placeholder="e.g. Haunted Mansion Wallpaper" value="${s?escAttr(s.name):''}" oninput="validateForm()">
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="rate-edit" id="f-rate">${[1,2,3,4,5].map(n=>`<span class="s ${s&&n<=(s.rating||0)?'on':''}" data-n="${n}" onclick="formRate(${n})">★</span>`).join('')}</div>
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <div class="tag-editor" id="f-tags">${tagEditorHtml(selTags)}</div>
+      <div class="tag-add">
+        <input type="text" id="f-newtag" placeholder="Add a new tag…" onkeydown="if(event.key==='Enter'){event.preventDefault();addNewTag()}">
+        <button type="button" onclick="addNewTag()">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes <span style="text-transform:none;font-weight:600;color:var(--faint)">— what it's about, size, anything</span></label>
+      <textarea id="f-notes" placeholder="The collection, characters, where you got it…">${s?escHtml(s.notes||''):''}</textarea>
+    </div>
+    <button class="form-save" id="saveBtn" onclick="saveShirt()">${s?'Save changes':'Add to closet'}</button>
+    ${s?'':''}
+  `;
+  openSheet();
+  validateForm();
+}
+let formRating=0;
+function formRate(n){
+  const s = formEditId? S.shirts.find(x=>x.id===formEditId):null;
+  if(formRating===0 && s) formRating=s.rating||0;
+  formRating = (formRating===n)?0:n;
+  document.querySelectorAll('#f-rate .s').forEach(el=>el.classList.toggle('on', (+el.dataset.n)<=formRating));
+}
+function tagEditorHtml(sel){
+  if(!S.tags.length) return `<span style="color:var(--faint);font-size:13.5px">No tags yet — add your first below.</span>`;
+  return S.tags.map(t=>`<button type="button" class="tagchip ${sel.includes(t)?'sel':''}" data-tag="${escAttr(t)}" onclick="toggleFormTag(this)">${escHtml(t)}</button>`).join('');
+}
+function toggleFormTag(btn){ btn.classList.toggle('sel'); }
+function addNewTag(){
+  const inp=document.getElementById('f-newtag'); const v=(inp.value||'').trim(); if(!v) return;
+  const exists=S.tags.find(t=>t.toLowerCase()===v.toLowerCase());
+  const tag = exists||v;
+  if(!exists){ S.tags.push(v); S.tags.sort((a,b)=>a.localeCompare(b)); scheduleSave(); }
+  // re-render editor keeping current selections + selecting the new one
+  const cur=currentFormTags(); if(!cur.includes(tag)) cur.push(tag);
+  document.getElementById('f-tags').innerHTML=tagEditorHtml(cur);
+  inp.value=''; inp.focus();
+}
+function currentFormTags(){ return Array.from(document.querySelectorAll('#f-tags .tagchip.sel')).map(b=>b.dataset.tag); }
+function validateForm(){
+  const nm=(document.getElementById('f-name').value||'').trim();
+  document.getElementById('saveBtn').disabled = !nm;
+}
+function saveShirt(){
+  const name=(document.getElementById('f-name').value||'').trim(); if(!name) return;
+  const notes=document.getElementById('f-notes').value||'';
+  const tags=currentFormTags();
+  const rating = formRating || (formEditId? (S.shirts.find(x=>x.id===formEditId)||{}).rating||0 : 0);
+  if(formEditId){
+    const s=S.shirts.find(x=>x.id===formEditId);
+    s.name=name; s.notes=notes; s.tags=tags; s.rating=formRating||s.rating||0;
+    if(formPhoto!==undefined){ s.photo=formPhoto||''; queuePhotoPush(s.id); }
+    toast('Saved');
+  }else{
+    const s={ id:rid(), name, notes, tags, rating:formRating||0, photo:formPhoto||'', wears:[], createdAt:now() };
+    S.shirts.push(s); queuePhotoPush(s.id);
+    toast('👕 Added to closet', true);
+  }
+  formRating=0;
+  scheduleSave();
+  closeSheet(); render();
+}
+
+/* ---- photo capture + resize ---- */
+function pickPhoto(){ document.getElementById('photoInput').click(); }
+document.getElementById('photoInput').addEventListener('change', async function(e){
+  const file=e.target.files&&e.target.files[0]; e.target.value='';
+  if(!file) return;
+  toast('Processing photo…');
+  try{
+    const b64=await resizeImage(file,1000,0.72);
+    formPhoto=b64;
+    const pick=document.getElementById('photoPick');
+    if(pick) pick.innerHTML=`<img id="photoPrev" src="${b64}"><span class="change">Change</span>`;
+  }catch(err){ toast('Could not read that image'); }
+});
+function resizeImage(file,maxDim,quality){
+  return new Promise((res,rej)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{ URL.revokeObjectURL(url);
+      let w=img.naturalWidth,h=img.naturalHeight;
+      const scale=Math.min(1,maxDim/Math.max(w,h));
+      w=Math.round(w*scale); h=Math.round(h*scale);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=rej; img.src=url;
+  });
+}
+
+/* =====================================================================
+   SETTINGS  (tags, backup, sync)
+   ===================================================================== */
+function renderSettings(){
+  const b=document.getElementById('settingsBody');
+  const tagCounts={}; S.shirts.forEach(s=>(s.tags||[]).forEach(t=>tagCounts[t]=(tagCounts[t]||0)+1));
+  const syncState = SYNC.enabled ? `<span class="pill on">● Synced</span>` : `<span class="pill off">Off</span>`;
+  b.innerHTML = `
+    <div class="setgroup">
+      <h3>Collection</h3>
+      <div class="setrow"><div class="lft"><div class="t">${S.shirts.length} shirts</div><div class="d">${totalWears()} wears logged all-time</div></div></div>
+      <div class="setrow">
+        <div class="lft"><div class="t">Flag shirts after</div><div class="d">Days unworn before a shirt is called out in Rotation</div></div>
+        <input class="num" type="number" min="3" max="365" value="${S.settings.staleDays}" onchange="setStale(this.value)">
+      </div>
+    </div>
+
+    <div class="setgroup">
+      <h3>Tags</h3>
+      ${S.tags.length? `<div class="tagmanage">${S.tags.map(t=>`<span class="tm"><b>${escHtml(t)}</b><span class="c">${tagCounts[t]||0}</span><button onclick="deleteTag('${esc(t)}')" aria-label="Delete tag">✕</button></span>`).join('')}</div>`
+        : `<div class="setrow"><div class="d" style="padding:2px 0">No tags yet. Add them while adding a shirt.</div></div>`}
+    </div>
+
+    <div class="setgroup">
+      <h3>Sync across devices ${syncState}</h3>
+      <div class="setrow">
+        <div class="lft"><div class="t">Cloud sync</div><div class="d">${SYNC.enabled? 'This device is syncing on code <b>'+escHtml(SYNC.code)+'</b>. Open RYSVLTS on any device with the same code to share your closet.' : 'Keep your closet in sync between phone and computer (uses your own Firebase, like Heath & Skipper).'}</div></div>
+        <button class="act" onclick="openSyncSetup()">${SYNC.enabled?'Manage':'Set up'}</button>
+      </div>
+      ${SYNC.enabled?`<div class="setrow"><div class="lft"><div class="t">Turn off sync</div><div class="d">Keeps your data on this device only</div></div><button class="act" onclick="disableSync()">Turn off</button></div>`:''}
+    </div>
+
+    <div class="setgroup">
+      <h3>Backup</h3>
+      <div class="setrow"><div class="lft"><div class="t">Export a backup file</div><div class="d">Downloads everything (photos included) as one file you can keep safe</div></div><button class="act" onclick="exportBackup()">Export</button></div>
+      <div class="setrow"><div class="lft"><div class="t">Import a backup</div><div class="d">Restore from a file you exported before</div></div><button class="act" onclick="document.getElementById('importFile').click()">Import</button></div>
+    </div>
+
+    <div class="setgroup">
+      <h3>About</h3>
+      <div class="setrow"><div class="lft"><div class="t">RYSVLTS</div><div class="d">Build ${APP_BUILD}</div></div></div>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
+  `;
+}
+function totalWears(){ return S.shirts.reduce((n,s)=>n+wearCount(s),0); }
+function setStale(v){ v=Math.max(3,Math.min(365,parseInt(v)||30)); S.settings.staleDays=v; scheduleSave(); }
+function deleteTag(t){
+  if(!confirm(`Delete the tag “${t}”? It will be removed from every shirt.`)) return;
+  S.tags=S.tags.filter(x=>x!==t);
+  S.shirts.forEach(s=>{ if(s.tags) s.tags=s.tags.filter(x=>x!==t); });
+  UI.filterTags=UI.filterTags.filter(x=>x!==t);
+  scheduleSave(); render();
+}
+
+/* ---- backup ---- */
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(S)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`rysvlts-backup-${todayKey().replace(/-/g,'')}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Backup downloaded', true);
+}
+function importBackup(inp){
+  const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const data=JSON.parse(r.result);
+    if(!data.shirts) throw 0;
+    if(!confirm(`Import ${data.shirts.length} shirts? This replaces what's on this device.`)) return;
+    S=Object.assign({settings:{staleDays:30},clientId:rid()},data);
+    persist(); render(); toast('Backup imported', true);
+    if(SYNC.enabled) syncPushNow(true);
+  }catch(e){ toast('That file could not be read'); } };
+  r.readAsText(file);
+}
+
+/* =====================================================================
+   DISCOUNT CODES
+   ===================================================================== */
+function renderCodes(){
+  const b=document.getElementById('codesBody');
+  const codes=S.codes||[];
+  const active=codes.filter(c=>!c.used);
+  const used=codes.filter(c=>c.used);
+  document.getElementById('codesCount').textContent = codes.length? `${active.length} active` : '';
+  let h=`<div class="addcode">
+      <input type="text" id="code-in" placeholder="Paste or type a code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('codelbl-in').focus()}">
+      <input type="text" id="codelbl-in" placeholder="What it's for (optional) — e.g. 20% off, loyalty reward" onkeydown="if(event.key==='Enter'){addCode()}">
+      <button class="addcode-btn" onclick="addCode()">Save code</button>
+    </div>`;
+  if(!codes.length){
+    h+=`<div class="empty"><span class="big">🎟️</span><h3>No codes saved</h3><p>Add the discount codes RSVLTS sends you. Copy one in a tap at checkout, then mark it used when it's spent.</p></div>`;
+    b.innerHTML=h; return;
+  }
+  if(active.length){ h+=`<div class="codesec-label">Ready to use</div>`+active.map(codeCardHtml).join(''); }
+  else{ h+=`<div class="codesec-empty">No active codes right now — add one above.</div>`; }
+  if(used.length){ h+=`<div class="codesec-label used">Used &amp; expired</div>`+used.map(codeCardHtml).join(''); }
+  b.innerHTML=h;
+}
+function codeCardHtml(c){
+  const label=c.label?`<div class="cclabel">${escHtml(c.label)}</div>`:'';
+  if(c.used){
+    return `<div class="codecard used">
+      <div class="ccmain"><div class="thecode struck">${escHtml(c.code)}</div>${label}</div>
+      <div class="ccside">
+        <span class="usedpill">Used</span>
+        <button class="ccicon" onclick="restoreCode('${c.id}')" title="Mark active">↩︎</button>
+        <button class="ccicon del" onclick="deleteCode('${c.id}')" title="Delete">🗑</button>
+      </div></div>`;
+  }
+  return `<div class="codecard">
+    <div class="ccmain" onclick="copyCode('${c.id}',null)"><div class="thecode">${escHtml(c.code)}</div>${label}</div>
+    <div class="ccside">
+      <button class="copybtn" onclick="copyCode('${c.id}',this)">Copy</button>
+      <button class="ccicon check" onclick="markUsed('${c.id}')" title="Mark used">✓</button>
+      <button class="ccicon del" onclick="deleteCode('${c.id}')" title="Delete">🗑</button>
+    </div></div>`;
+}
+function addCode(){
+  const ci=document.getElementById('code-in'), li=document.getElementById('codelbl-in');
+  const code=(ci.value||'').trim(); if(!code){ toast('Enter a code first'); ci.focus(); return; }
+  const label=(li.value||'').trim();
+  if(!S.codes) S.codes=[];
+  S.codes.unshift({ id:rid(), code, label, used:false, addedAt:now() });
+  ci.value=''; li.value=''; ci.focus();
+  scheduleSave(); renderCodes(); toast('Code saved', true);
+}
+function copyCode(id,btn){
+  const c=(S.codes||[]).find(x=>x.id===id); if(!c) return;
+  const done=()=>{ toast('Copied  '+c.code, true);
+    if(btn){ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>{btn.textContent=t;},1200); }
+    if(navigator.vibrate) navigator.vibrate(8); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(c.code).then(done).catch(()=>fallbackCopy(c.code,done));
+  } else fallbackCopy(c.code,done);
+}
+function fallbackCopy(text,cb){
+  const t=document.createElement('textarea'); t.value=text; t.style.position='fixed'; t.style.opacity='0';
+  document.body.appendChild(t); t.focus(); t.select();
+  try{ document.execCommand('copy'); cb&&cb(); }catch(e){ toast('Couldn\'t copy automatically'); }
+  document.body.removeChild(t);
+}
+function markUsed(id){ const c=(S.codes||[]).find(x=>x.id===id); if(!c)return; c.used=true; c.usedAt=now(); scheduleSave(); renderCodes(); toast('Marked used'); }
+function restoreCode(id){ const c=(S.codes||[]).find(x=>x.id===id); if(!c)return; c.used=false; delete c.usedAt; scheduleSave(); renderCodes(); }
+function deleteCode(id){ if(!confirm('Delete this code for good?'))return; S.codes=(S.codes||[]).filter(x=>x.id!==id); scheduleSave(); renderCodes(); }
+
+/* =====================================================================
+   FIREBASE SYNC  (optional — config lives in localStorage, not the HTML)
+   Metadata + photos are pushed on separate paths so a "wore today" tap
+   only ships the small metadata, never the whole photo library.
+   ===================================================================== */
+const SYNC = { enabled:false, code:'', cfg:null, db:null, ready:false, pushT:null,
+               photoQueue:new Set(), photoDel:new Set(), remoteCount:0, applying:false };
+
+function loadSyncConfig(){
+  try{
+    const raw=localStorage.getItem('rysvlts_sync');
+    if(raw){ const o=JSON.parse(raw); SYNC.cfg=o.cfg; SYNC.code=o.code; SYNC.enabled=!!(o.cfg&&o.code); }
+  }catch(e){}
+}
+function saveSyncConfig(){
+  localStorage.setItem('rysvlts_sync', JSON.stringify({cfg:SYNC.cfg,code:SYNC.code}));
+}
+function openSyncSetup(){
+  const scroll=document.getElementById('sheetScroll');
+  scroll.innerHTML=`
+    <h2 style="font-family:'Anton';font-weight:400;font-size:24px;letter-spacing:.02em;margin:4px 2px 14px">Sync setup</h2>
+    <p class="help">Paste your Firebase web-app config below (the same project you use for Heath / Skipper is fine — this app keeps its data on its own <code>rysvlts/</code> branch). Then pick a sync code — any word or phrase — and use the <b>same code</b> on every device.</p>
+    <div class="field"><label>Firebase config</label>
+      <textarea class="cfgbox" id="cfg-in" placeholder='{
+  "apiKey": "…",
+  "databaseURL": "https://your-app.firebaseio.com",
+  "projectId": "…",
+  "appId": "…"
+}'>${SYNC.cfg?escHtml(JSON.stringify(SYNC.cfg,null,2)):''}</textarea></div>
+    <div class="field"><label>Sync code</label>
+      <input type="text" id="cfg-code" placeholder="e.g. ryan-shirts-2026" value="${SYNC.code?escAttr(SYNC.code):''}" style="width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:13px 14px;outline:none"></div>
+    <p class="help">Your config is stored only on this device (never in the app's code). First device to connect uploads its closet; the rest pull it down.</p>
+    <button class="form-save" onclick="saveSyncSetup()">Connect</button>`;
+  openSheet();
+}
+function saveSyncSetup(){
+  let cfg;
+  try{ cfg=JSON.parse(document.getElementById('cfg-in').value.trim()); }
+  catch(e){ toast('That config isn\'t valid JSON'); return; }
+  const code=(document.getElementById('cfg-code').value||'').trim().toLowerCase().replace(/[^a-z0-9\-_]/g,'-');
+  if(!cfg.databaseURL){ toast('Config needs a databaseURL'); return; }
+  if(!code){ toast('Pick a sync code'); return; }
+  SYNC.cfg=cfg; SYNC.code=code; SYNC.enabled=true; SYNC.ready=false; SYNC.db=null;
+  saveSyncConfig();
+  closeSheet();
+  toast('Connecting…');
+  syncStart(true);
+}
+function disableSync(){
+  if(!confirm('Turn off sync on this device? Your shirts stay here.')) return;
+  SYNC.enabled=false; SYNC.ready=false; SYNC.db=null;
+  localStorage.removeItem('rysvlts_sync');
+  render(); toast('Sync turned off');
+}
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+async function syncStart(freshPush){
+  if(!SYNC.enabled) return;
+  try{
+    if(!window.firebase){
+      await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js');
+    }
+    if(!SYNC.db){
+      const app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(SYNC.cfg);
+      SYNC.db = firebase.database(app);
+    }
+    const base='rysvlts/'+SYNC.code;
+    // pull metadata
+    SYNC.db.ref(base+'/data').on('value', snap=>{
+      const remote=snap.val(); if(!remote) { SYNC.remoteCount=0; if(freshPush) syncPushNow(true); return; }
+      SYNC.remoteCount = (remote.shirts||[]).length;
+      if(remote.updatedAt && remote.updatedAt > (S.updatedAt||0) && remote.clientId!==S.clientId){
+        applyRemote(remote);
+      }
+    });
+    // pull photos map
+    SYNC.db.ref(base+'/photos').on('value', snap=>{
+      const photos=snap.val()||{}; let changed=false;
+      S.shirts.forEach(s=>{ if(photos[s.id] && photos[s.id]!==s.photo){ s.photo=photos[s.id]; changed=true; } });
+      if(changed){ idbSet('state',S); if(document.getElementById('sheet').classList.contains('on')===false) render(); }
+    });
+    SYNC.ready=true;
+    render();
+    if(freshPush) syncPushNow(true);
+  }catch(e){ toast('Sync connection failed'); SYNC.enabled=false; }
+}
+function applyRemote(remote){
+  SYNC.applying=true;
+  const photos={}; S.shirts.forEach(s=>{ if(s.photo) photos[s.id]=s.photo; });
+  S.shirts = (remote.shirts||[]).map(s=>({ ...s, photo: photos[s.id]||s.photo||'' }));
+  S.tags = remote.tags||S.tags;
+  S.codes = remote.codes||S.codes;
+  S.settings = remote.settings||S.settings;
+  S.updatedAt = remote.updatedAt;
+  idbSet('state',S);
+  render();
+  SYNC.applying=false;
+}
+function queueSyncPush(){ if(!SYNC.enabled||!SYNC.ready) return; clearTimeout(SYNC.pushT); SYNC.pushT=setTimeout(()=>syncPushNow(false),700); }
+function queuePhotoPush(id){ SYNC.photoQueue.add(id); }
+function queuePhotoDelete(id){ SYNC.photoDel.add(id); }
+function syncPushNow(force){
+  if(!SYNC.enabled||!SYNC.ready||!SYNC.db) return;
+  if(SYNC.applying && !force) return;
+  const base='rysvlts/'+SYNC.code;
+  // metadata WITHOUT photos
+  const data={
+    shirts: S.shirts.map(s=>{ const {photo, ...rest}=s; return rest; }),
+    tags:S.tags, codes:S.codes||[], settings:S.settings, updatedAt:S.updatedAt||now(), clientId:S.clientId
+  };
+  SYNC.db.ref(base+'/data').set(data).catch(()=>{});
+  // photos that changed
+  SYNC.photoQueue.forEach(id=>{
+    const s=S.shirts.find(x=>x.id===id); if(!s) return;
+    SYNC.db.ref(base+'/photos/'+id).set(s.photo||null).catch(()=>{});
+  });
+  SYNC.photoQueue.clear();
+  SYNC.photoDel.forEach(id=>{ SYNC.db.ref(base+'/photos/'+id).remove().catch(()=>{}); });
+  SYNC.photoDel.clear();
+  // on a forced full push (import/first connect) ship every photo
+  if(force){ S.shirts.forEach(s=>{ if(s.photo) SYNC.db.ref(base+'/photos/'+s.id).set(s.photo).catch(()=>{}); }); }
+}
+
+/* =====================================================================
+   SHEET plumbing + misc UI
+   ===================================================================== */
+function openSheet(){ document.getElementById('backdrop').classList.add('on'); document.getElementById('sheet').classList.add('on'); document.body.style.overflow='hidden'; }
+function closeSheet(){ document.getElementById('backdrop').classList.remove('on'); document.getElementById('sheet').classList.remove('on'); document.body.style.overflow=''; formEditId=null; formPhoto=undefined; formRating=0; }
+document.getElementById('backdrop').addEventListener('click',closeSheet);
+
+let toastT=null;
+function toast(msg,good){
+  const el=document.getElementById('toast'); el.textContent=msg;
+  el.classList.toggle('good',!!good); el.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),1900);
+}
+
+/* search */
+document.getElementById('searchToggle').addEventListener('click',()=>{
+  const w=document.getElementById('searchWrap'); const on=w.classList.toggle('on');
+  if(on){ document.getElementById('searchInput').focus(); }
+  else{ document.getElementById('searchInput').value=''; UI.search=''; render(); }
+});
+document.getElementById('searchInput').addEventListener('input',e=>{ UI.search=e.target.value; if(UI.view==='settings')go('closet'); else render(); });
+
+/* nav + fab */
+document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+document.getElementById('fab').addEventListener('click',()=>openForm());
+
+/* ---- escaping ---- */
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(s){ return escHtml(s); }
+function esc(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year: (new Date().getFullYear()!==d.getFullYear())?'numeric':undefined}); }
+
+/* ---- update check ---- */
+function scheduleUpdateCheck(){ setTimeout(checkForUpdate,4000); window.addEventListener('focus',()=>{ if(document.visibilityState==='visible') checkForUpdate(); }); }
+async function checkForUpdate(){
+  try{ const r=await fetch('index.html?u='+Date.now(),{cache:'no-store'}); const t=await r.text();
+    const m=t.match(/APP_BUILD\s*=\s*'([^']+)'/); if(m&&m[1]&&m[1]!==APP_BUILD) document.getElementById('updateBanner').classList.add('on');
+  }catch(e){}
+}
+
+/* ---- service worker ---- */
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+
+boot();
+</script>
+</body>
+</html>
