@@ -212,7 +212,12 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 }
 .sheet.on{transform:translateY(0)}
 .sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--surface-3);margin:10px auto 4px;flex:none}
-.sheet .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 18px calc(26px + var(--safe-b))}
+.sheet-top{position:sticky;top:0;z-index:6;flex:none;display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
+.sheet-back{display:inline-flex;align-items:center;gap:3px;padding:9px 15px 9px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-weight:800;font-size:14.5px;transition:transform .1s}
+.sheet-back:active{transform:scale(.94)}
+.sheet-home{font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.02em;color:var(--muted);padding:6px 8px}
+.sheet-home b{color:var(--hot);font-weight:400}
+.sheet .scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 18px calc(26px + var(--safe-b))}
 @media(min-width:640px){
   .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-46%) scale(.98);
     width:560px;max-height:90vh;border-radius:22px;opacity:0}
@@ -403,7 +408,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 
 <div class="topbar">
   <div class="topbar-row">
-    <div class="brand">
+    <div class="brand" onclick="goHome()" style="cursor:pointer">
       <span class="mark"><b>RY</b>SVLTS</span>
     </div>
     <button class="icon-btn" id="searchToggle" aria-label="Search">🔍</button>
@@ -455,7 +460,10 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 <!-- SHEET (detail / form / etc) -->
 <div class="sheet-backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet">
-  <div class="grab"></div>
+  <div class="sheet-top">
+    <button class="sheet-back" onclick="closeSheet()">‹ Back</button>
+    <button class="sheet-home" onclick="goHome()" aria-label="Home"><b>RY</b>SVLTS</button>
+  </div>
   <div class="scroll" id="sheetScroll"></div>
 </div>
 
@@ -470,7 +478,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-05-E';
+const APP_BUILD = '2026-09-05-F';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
 
 /* ---------- tiny IndexedDB kv store ---------- */
@@ -540,6 +548,12 @@ function render(){
   else renderSettings();
 }
 function go(view){ UI.view=view; window.scrollTo(0,0); render(); }
+function goHome(){
+  closeSheet();
+  UI.view='closet'; UI.favOnly=false;
+  const w=document.getElementById('searchWrap'); if(w.classList.contains('on')){ w.classList.remove('on'); document.getElementById('searchInput').value=''; UI.search=''; }
+  window.scrollTo(0,0); render();
+}
 
 /* ---- helpers ---- */
 function lastWorn(sh){ return sh.wears&&sh.wears.length ? Math.max(...sh.wears) : 0; }
@@ -560,6 +574,13 @@ function relWorn(sh){
   return Math.floor(d/30)+' months ago';
 }
 function starStr(n){ return '★'.repeat(n); }
+function lastWornLine(sh){
+  const lw=lastWorn(sh);
+  if(!lw) return "You haven't worn this yet";
+  const rel=relWorn(sh); // "Worn today" | "Worn yesterday" | "2 days ago" | "Last week" | ...
+  const phrase = /^Worn /.test(rel) ? rel : ('Last worn '+rel.toLowerCase());
+  return phrase+' · '+fmtDate(lw);
+}
 
 function visibleShirts(){
   let list=S.shirts.slice();
@@ -729,7 +750,7 @@ function renderDetail(id){
     <button class="wear-cta ${done?'done':''}" onclick="quickWear('${s.id}',null);renderDetail('${s.id}')">
       ${done?'✓ Worn today — tap to undo':'👕 I\'m wearing this today'}
     </button>
-    <div class="lastworn-line">${lw?('Last worn '+relWorn(s).toLowerCase()+' · '+fmtDate(lw)):'You haven\'t worn this yet'}</div>
+    <div class="lastworn-line">${lastWornLine(s)}</div>
     <div class="statrow">
       <div class="stat"><div class="n">${wearCount(s)}</div><div class="l">Times worn</div></div>
       <div class="stat"><div class="n">${lw?daysSince(lw):'—'}</div><div class="l">${lw?'Days since':'Never worn'}</div></div>
