@@ -478,7 +478,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-05-F';
+const APP_BUILD = '2026-09-05-G';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
 
 /* ---------- tiny IndexedDB kv store ---------- */
@@ -1030,6 +1030,7 @@ function renderSettings(){
     <div class="setgroup">
       <h3>About</h3>
       <div class="setrow"><div class="lft"><div class="t">RYSVLTS</div><div class="d">Build ${APP_BUILD}</div></div></div>
+      <div class="setrow"><div class="lft"><div class="t">Force refresh</div><div class="d">Clears the app cache and reloads the newest version</div></div><button class="act" onclick="forceRefresh()">Refresh</button></div>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
   `;
@@ -1295,14 +1296,28 @@ function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString(undefine
 
 /* ---- update check ---- */
 function scheduleUpdateCheck(){ setTimeout(checkForUpdate,4000); window.addEventListener('focus',()=>{ if(document.visibilityState==='visible') checkForUpdate(); }); }
+async function forceRefresh(){
+  toast('Refreshing…');
+  try{
+    if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+  }catch(e){}
+  location.href=location.pathname+'?v='+Date.now();
+}
 async function checkForUpdate(){
   try{ const r=await fetch('index.html?u='+Date.now(),{cache:'no-store'}); const t=await r.text();
     const m=t.match(/APP_BUILD\s*=\s*'([^']+)'/); if(m&&m[1]&&m[1]!==APP_BUILD) document.getElementById('updateBanner').classList.add('on');
   }catch(e){}
 }
 
-/* ---- service worker ---- */
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+/* ---- service worker + auto-update ---- */
+if('serviceWorker' in navigator){
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing) return; refreshing=true; location.reload(); });
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(nw) nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage&&nw.postMessage('skipWaiting'); }); });
+  }).catch(()=>{}));
+}
 
 boot();
 </script>
