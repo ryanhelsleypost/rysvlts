@@ -478,8 +478,9 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-07-I';
-const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
+const APP_BUILD = '2026-09-07-J';
+const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid','Villains'];
+const TAG_SEED_V = 2; // bump when DEFAULT_TAGS changes so new defaults merge in once
 
 /* ---------- tiny IndexedDB kv store ---------- */
 const DB_NAME='rysvltsDB', STORE='kv';
@@ -521,13 +522,14 @@ async function boot(){
 
 /* one-time: seed the starter tag pool (won't re-add after you delete any) */
 function seedDefaultTags(){
-  if(!S.settings) S.settings={staleDays:30};
-  if(S.settings.tagsSeeded) return;
+  if(!S.settings) S.settings={staleDays:30,repeatWarnDays:7};
+  if((S.settings.tagsSeededV||0) >= TAG_SEED_V) return;
   if(!S.tags) S.tags=[];
   const have=new Set(S.tags.map(t=>t.toLowerCase()));
   DEFAULT_TAGS.forEach(t=>{ if(!have.has(t.toLowerCase())){ S.tags.push(t); have.add(t.toLowerCase()); } });
   S.tags.sort((a,b)=>a.localeCompare(b));
-  S.settings.tagsSeeded=true;
+  S.settings.tagsSeededV = TAG_SEED_V;
+  delete S.settings.tagsSeeded;
   persist();
 }
 
@@ -857,7 +859,7 @@ function addNewTag(){
   const inp=document.getElementById('f-newtag'); const v=(inp.value||'').trim(); if(!v) return;
   const exists=S.tags.find(t=>t.toLowerCase()===v.toLowerCase());
   const tag = exists||v;
-  if(!exists){ S.tags.push(v); S.tags.sort((a,b)=>a.localeCompare(b)); scheduleSave(); }
+  if(!exists){ S.tags.push(v); S.tags.sort((a,b)=>a.localeCompare(b)); persist(); toast('Added tag “'+v+'”', true); }
   // re-render editor keeping current selections + selecting the new one
   const cur=currentFormTags(); if(!cur.includes(tag)) cur.push(tag);
   document.getElementById('f-tags').innerHTML=tagEditorHtml(cur);
