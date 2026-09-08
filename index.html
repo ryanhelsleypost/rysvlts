@@ -395,6 +395,35 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
 .bulkfoot button{width:100%;padding:16px;border-radius:14px;background:var(--hot);color:#fff;font-size:16.5px;font-weight:800;transition:transform .1s}
 .bulkfoot button:active{transform:scale(.98)}
 
+/* ============ CLOSET METRICS + CONTROLS + LIST ============ */
+.metrics{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:13px;scrollbar-width:none}
+.metrics::-webkit-scrollbar{display:none}
+.metric{flex:none;min-width:78px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 13px;border-radius:13px;background:var(--surface);border:1px solid var(--line);transition:all .12s}
+.metric:active{transform:scale(.96)}
+.metric.on{border-color:var(--hot);background:rgba(255,69,54,.1)}
+.metric .mn{font-family:'Anton',sans-serif;font-size:22px;line-height:1;color:var(--ink)}
+.metric.on .mn{color:var(--hot)}
+.metric .ml{font-size:10.5px;font-weight:800;letter-spacing:.3px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.closetctl{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.closetctl .segbar{margin-bottom:0}
+.sortview{display:flex;align-items:center;gap:8px}
+.sortsel{flex:1;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:11px 34px 11px 13px;font-weight:700;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%23a49daf' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center}
+.viewtoggle{flex:none;width:46px;height:44px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-size:19px;display:grid;place-items:center;transition:transform .1s}
+.viewtoggle:active{transform:scale(.92)}
+.listwrap{display:flex;flex-direction:column;gap:9px}
+.listrow{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:9px 10px;transition:transform .12s}
+.listrow:active{transform:scale(.99)}
+.listrow .lthumb{width:54px;height:54px;border-radius:10px;object-fit:cover;flex:none;background:var(--surface-2)}
+.listrow .lthumb.noimg{display:grid;place-items:center;color:var(--faint);font-size:20px}
+.listrow .linfo{flex:1;min-width:0}
+.listrow .lname{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.listrow .lheart{color:var(--hot)}
+.listrow .lmeta{font-size:12px;font-weight:700;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+.listrow .lstars{color:var(--gold)}
+.listrow .lquick{flex:none;width:42px;height:42px;border-radius:11px;background:var(--hot);color:#fff;display:grid;place-items:center;font-size:17px;transition:transform .1s}
+.listrow .lquick:active{transform:scale(.9)}
+.listrow .lquick.done{background:var(--ok)}
+
 /* splash */
 #splash{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;transition:opacity .4s}
 #splash.gone{opacity:0;pointer-events:none}
@@ -478,7 +507,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-07-K';
+const APP_BUILD = '2026-09-07-L';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid','Villains','Mansion','Pixar'];
 const TAG_SEED_V = 3; // bump when DEFAULT_TAGS changes so new defaults merge in once
 
@@ -494,7 +523,9 @@ async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{
 
 /* ---------- state ---------- */
 let S = { shirts:[], tags:[], codes:[], settings:{ staleDays:30, repeatWarnDays:7 }, updatedAt:0, clientId:rid() };
-const UI = { view:'closet', filterTags:[], search:'', wornFlash:{}, favOnly:false };
+const UI = { view:'closet', filterTags:[], search:'', wornFlash:{}, favOnly:false, sort:'rating', layout:'grid', wearFilter:null, showUntagged:false };
+function loadUIPrefs(){ try{ const o=JSON.parse(localStorage.getItem('rysvlts_ui')||'{}'); if(o.sort)UI.sort=o.sort; if(o.layout)UI.layout=o.layout; }catch(e){} }
+function saveUIPrefs(){ try{ localStorage.setItem('rysvlts_ui', JSON.stringify({sort:UI.sort,layout:UI.layout})); }catch(e){} }
 
 function rid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function now(){return Date.now();}
@@ -513,6 +544,7 @@ async function boot(){
   const saved = await idbGet('state');
   if(saved && saved.shirts){ S = Object.assign(S, saved); if(!S.settings) S.settings={staleDays:30,repeatWarnDays:7}; if(!S.clientId) S.clientId=rid(); if(!S.codes) S.codes=[]; if(S.settings.repeatWarnDays===undefined) S.settings.repeatWarnDays=7; }
   loadSyncConfig();
+  loadUIPrefs();
   seedDefaultTags();
   render();
   setTimeout(()=>document.getElementById('splash').classList.add('gone'),350);
@@ -586,7 +618,10 @@ function lastWornLine(sh){
 
 function visibleShirts(){
   let list=S.shirts.slice();
-  if(UI.filterTags.length) list=list.filter(s=>UI.filterTags.every(t=>(s.tags||[]).includes(t)));
+  if(UI.showUntagged) list=list.filter(s=>!(s.tags&&s.tags.length));
+  else if(UI.filterTags.length) list=list.filter(s=>UI.filterTags.every(t=>(s.tags||[]).includes(t)));
+  if(UI.wearFilter==='never') list=list.filter(s=>!lastWorn(s));
+  else if(UI.wearFilter==='month'){ const cut=now()-31*86400000; list=list.filter(s=>{ const lw=lastWorn(s); return lw && lw>=cut; }); }
   if(UI.search.trim()){
     const q=UI.search.toLowerCase();
     list=list.filter(s=> (s.name||'').toLowerCase().includes(q)
@@ -595,45 +630,108 @@ function visibleShirts(){
   }
   return list;
 }
+function sortShirts(list){
+  const arr=list.slice(), by=UI.sort;
+  if(by==='name') arr.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if(by==='recent') arr.sort((a,b)=> lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
+  else if(by==='unworn') arr.sort((a,b)=> lastWorn(a)-lastWorn(b) || (a.createdAt||0)-(b.createdAt||0));
+  else if(by==='added') arr.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  else arr.sort((a,b)=> (b.rating||0)-(a.rating||0) || lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
+  return arr;
+}
 
 function renderFilterRail(){
   const rail=document.getElementById('filterRail');
-  if(!(UI.view==='closet'||UI.view==='rotation')||!S.tags.length){ rail.innerHTML=''; return; }
+  if(!(UI.view==='closet'||UI.view==='rotation')){ rail.innerHTML=''; return; }
   let h='';
-  if(UI.filterTags.length) h+=`<button class="clearf" onclick="clearFilter()">Clear</button>`;
+  if(UI.filterTags.length||UI.showUntagged||UI.wearFilter) h+=`<button class="clearf" onclick="clearAllFilters()">Clear</button>`;
+  h+=`<button class="tagchip ${UI.showUntagged?'on':''}" onclick="toggleUntagged()">🏷️ Untagged</button>`;
   S.tags.forEach(t=>{
     const on=UI.filterTags.includes(t);
     h+=`<button class="tagchip ${on?'on':''}" onclick="toggleFilter('${esc(t)}')">${escHtml(t)}</button>`;
   });
   rail.innerHTML=h;
 }
-function toggleFilter(t){ const i=UI.filterTags.indexOf(t); if(i<0)UI.filterTags.push(t); else UI.filterTags.splice(i,1); render(); }
-function clearFilter(){ UI.filterTags=[]; render(); }
+function toggleFilter(t){ UI.showUntagged=false; const i=UI.filterTags.indexOf(t); if(i<0)UI.filterTags.push(t); else UI.filterTags.splice(i,1); render(); }
+function toggleUntagged(){ UI.showUntagged=!UI.showUntagged; if(UI.showUntagged) UI.filterTags=[]; if(UI.view!=='closet'&&UI.view!=='rotation') UI.view='closet'; render(); }
+function setWearFilter(v){ UI.wearFilter = (UI.wearFilter===v)?null:v; render(); }
+function clearAllFilters(){ UI.filterTags=[]; UI.showUntagged=false; UI.wearFilter=null; render(); }
+function activeQuick(){ return !!(UI.wearFilter||UI.showUntagged||UI.filterTags.length); }
+function clearQuick(){ clearAllFilters(); }
 
 /* ---- CLOSET ---- */
 function renderCloset(){
   const body=document.getElementById('closetBody');
-  let list=visibleShirts();
-  if(UI.favOnly) list=list.filter(s=>s.fav);
-  list.sort((a,b)=> (b.rating||0)-(a.rating||0) || lastWorn(b)-lastWorn(a) || (b.createdAt||0)-(a.createdAt||0));
-  const favCount=S.shirts.filter(s=>s.fav).length;
-  document.getElementById('closetCount').textContent = S.shirts.length ? `${list.length} of ${S.shirts.length}` : '';
   if(!S.shirts.length){
     body.innerHTML=`<div class="empty"><span class="big">👕</span><h3>Your closet is empty</h3>
       <p>Add shirts one at a time, or drop in a whole batch of photos and name them together.</p>
       <button class="form-save" style="max-width:240px;margin:0 auto" onclick="openForm()">Add a shirt</button>
       <button class="bulk-entry" onclick="bulkPick()">＋ Add several from photos</button></div>`;
+    document.getElementById('closetCount').textContent='';
     return;
   }
-  const seg=`<div class="segbar">
+  let list=visibleShirts();
+  if(UI.favOnly) list=list.filter(s=>s.fav);
+  list=sortShirts(list);
+  document.getElementById('closetCount').textContent = `${list.length} of ${S.shirts.length}`;
+
+  const total=S.shirts.length;
+  const never=S.shirts.filter(s=>!lastWorn(s)).length;
+  const cut=now()-31*86400000, month=S.shirts.filter(s=>{const lw=lastWorn(s);return lw&&lw>=cut;}).length;
+  const untag=S.shirts.filter(s=>!(s.tags&&s.tags.length)).length;
+  const metrics=`<div class="metrics">
+    <button class="metric ${!activeQuick()?'on':''}" onclick="clearQuick()"><span class="mn">${total}</span><span class="ml">Shirts</span></button>
+    <button class="metric ${UI.wearFilter==='never'?'on':''}" onclick="setWearFilter('never')"><span class="mn">${never}</span><span class="ml">Never worn</span></button>
+    <button class="metric ${UI.wearFilter==='month'?'on':''}" onclick="setWearFilter('month')"><span class="mn">${month}</span><span class="ml">Worn · 30d</span></button>
+    <button class="metric ${UI.showUntagged?'on':''}" onclick="toggleUntagged()"><span class="mn">${untag}</span><span class="ml">Untagged</span></button>
+  </div>`;
+
+  const favCount=S.shirts.filter(s=>s.fav).length;
+  const ctl=`<div class="closetctl">
+    <div class="segbar">
       <button class="seg ${!UI.favOnly?'on':''}" onclick="setFavOnly(false)">All</button>
       <button class="seg ${UI.favOnly?'on':''}" onclick="setFavOnly(true)"><span class="hh">♥</span> Favorites${favCount?` (${favCount})`:''}</button>
-    </div>`;
+    </div>
+    <div class="sortview">
+      <select class="sortsel" onchange="setSort(this.value)">
+        <option value="rating" ${UI.sort==='rating'?'selected':''}>★ Top rated</option>
+        <option value="recent" ${UI.sort==='recent'?'selected':''}>Recently worn</option>
+        <option value="unworn" ${UI.sort==='unworn'?'selected':''}>Longest unworn</option>
+        <option value="name" ${UI.sort==='name'?'selected':''}>Name A–Z</option>
+        <option value="added" ${UI.sort==='added'?'selected':''}>Newest added</option>
+      </select>
+      <button class="viewtoggle" onclick="toggleLayout()" aria-label="Switch layout">${UI.layout==='list'?'▦':'☰'}</button>
+    </div>
+  </div>`;
+
   let inner;
-  if(UI.favOnly && !list.length){ inner=`<div class="empty"><span class="big" style="color:var(--hot)">♥</span><h3>No favorites yet</h3><p>Tap the ♥ on any shirt to add it to your favorites.</p></div>`; }
-  else if(!list.length){ inner=`<div class="empty"><span class="big">🔍</span><h3>No matches</h3><p>Nothing fits those filters. Try clearing them.</p></div>`; }
+  if(!list.length) inner=emptyFilterMsg();
+  else if(UI.layout==='list') inner=`<div class="listwrap">`+list.map(listRowHtml).join('')+`</div>`;
   else inner=`<div class="grid">`+list.map(cardHtml).join('')+`</div>`;
-  body.innerHTML=seg+inner;
+  body.innerHTML=metrics+ctl+inner;
+}
+function setSort(v){ UI.sort=v; saveUIPrefs(); renderCloset(); }
+function toggleLayout(){ UI.layout = UI.layout==='list'?'grid':'list'; saveUIPrefs(); renderCloset(); }
+function emptyFilterMsg(){
+  if(UI.showUntagged) return `<div class="empty"><span class="big">🏷️</span><h3>Everything's tagged</h3><p>No untagged shirts left — nice work.</p></div>`;
+  if(UI.favOnly) return `<div class="empty"><span class="big" style="color:var(--hot)">♥</span><h3>No favorites yet</h3><p>Tap the ♥ on any shirt to add it here.</p></div>`;
+  if(UI.wearFilter==='never') return `<div class="empty"><span class="big">🎉</span><h3>All worn at least once</h3><p>Nothing brand-new sitting in the closet.</p></div>`;
+  if(UI.wearFilter==='month') return `<div class="empty"><span class="big">📅</span><h3>Nothing worn recently</h3><p>No shirts logged in the last 30 days.</p></div>`;
+  return `<div class="empty"><span class="big">🔍</span><h3>No matches</h3><p>Nothing fits those filters. Try clearing them.</p></div>`;
+}
+function listRowHtml(s){
+  const done=UI.wornFlash[s.id]||wornToday(s);
+  const ph = s.photo? `<img class="lthumb" src="${s.photo}" alt="" loading="lazy">` : `<div class="lthumb noimg">👕</div>`;
+  const heart = s.fav? ` <span class="lheart">♥</span>`:'';
+  const stars = s.rating? ` · <span class="lstars">★ ${s.rating}</span>`:'';
+  return `<div class="listrow" onclick="openDetail('${s.id}')">
+    ${ph}
+    <div class="linfo">
+      <div class="lname">${escHtml(s.name||'Untitled')}${heart}</div>
+      <div class="lmeta"><span class="dot ${freshnessClass(s)}"></span>${relWorn(s)}${stars}</div>
+    </div>
+    <button class="lquick ${done?'done':''}" onclick="event.stopPropagation();quickWear('${s.id}',this)" aria-label="Wore today">${done?'✓':'👕'}</button>
+  </div>`;
 }
 function setFavOnly(v){ UI.favOnly=v; renderCloset(); }
 function toggleFav(id,btn,fromDetail){
