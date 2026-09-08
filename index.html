@@ -478,7 +478,7 @@ main{padding:14px 16px 20px;max-width:900px;margin:0 auto}
    IN ROTATION — RSVLTS shirt catalog
    Build stamp drives the update banner.
    ===================================================================== */
-const APP_BUILD = '2026-09-05-H';
+const APP_BUILD = '2026-09-07-I';
 const DEFAULT_TAGS = ['Disney','Mickey','Halloween','Christmas','Formal','Simple','Loud','Colorful','Black & White','Hercules','Disney Afternoon','Darkwing Duck','Rescue Rangers','DuckTales','TaleSpin','Tropical','Star Wars','Marvel','Solid'];
 
 /* ---------- tiny IndexedDB kv store ---------- */
@@ -920,31 +920,54 @@ function resizeImage(file,maxDim,quality){
 /* =====================================================================
    BULK IMPORT  (one-shot mass onboarding)
    ===================================================================== */
-let bulkDrafts=[];
-function bulkPick(){ document.getElementById('bulkInput').click(); }
+let bulkDrafts=[], bulkFails=0;
+function bulkPick(){ const el=document.getElementById('bulkInput'); el.value=''; el.click(); }
 document.getElementById('bulkInput').addEventListener('change', function(e){
-  const files=e.target.files; e.target.value='';
-  if(files && files.length) startBulkImport(files);
+  const files=e.target.files ? Array.from(e.target.files) : [];
+  e.target.value='';
+  startBulkImport(files);
 });
+function withTimeout(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timed out')),ms))]); }
+async function processImage(file,maxDim,quality){
+  // createImageBitmap handles more formats (incl. HEIC) and is lighter on memory
+  if(window.createImageBitmap){
+    try{
+      const bmp=await withTimeout(createImageBitmap(file),20000);
+      const w=bmp.width,h=bmp.height,scale=Math.min(1,maxDim/Math.max(w,h));
+      const cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+      const c=document.createElement('canvas'); c.width=cw; c.height=ch;
+      c.getContext('2d').drawImage(bmp,0,0,cw,ch);
+      if(bmp.close) bmp.close();
+      return c.toDataURL('image/jpeg',quality);
+    }catch(e){ /* fall through to <img> path */ }
+  }
+  return await withTimeout(resizeImage(file,maxDim,quality),20000);
+}
+function bulkMsg(title,sub){
+  return `<div class="bulkloading"><span style="font-size:44px;display:block">📷</span><h3>${escHtml(title)}</h3><p style="max-width:300px;margin:6px auto 0">${escHtml(sub)}</p>
+    <button class="form-save" style="max-width:220px;margin:18px auto 0" onclick="closeSheet()">Close</button></div>`;
+}
 async function startBulkImport(files){
-  bulkDrafts=[];
-  const arr=Array.from(files);
+  bulkDrafts=[]; bulkFails=0;
   openSheet();
   const scroll=document.getElementById('sheetScroll');
-  for(let i=0;i<arr.length;i++){
-    scroll.innerHTML=`<div class="bulkloading"><div class="spinner"></div><h3>Processing photos…</h3><p>${i+1} of ${arr.length}</p></div>`;
-    try{ const b64=await resizeImage(arr[i],1000,0.72); bulkDrafts.push({id:rid(),photo:b64,name:'',rating:0,fav:false}); }
-    catch(err){}
-    await new Promise(r=>setTimeout(r,0));
-  }
+  if(!files.length){ scroll.innerHTML=bulkMsg('No photos selected','Tap Import again and pick photos from your library.'); return; }
+  try{
+    for(let i=0;i<files.length;i++){
+      scroll.innerHTML=`<div class="bulkloading"><div class="spinner"></div><h3>Processing photos…</h3><p>${i+1} of ${files.length}${bulkFails?` · ${bulkFails} skipped`:''}</p></div>`;
+      await new Promise(r=>requestAnimationFrame(()=>r()));
+      try{ const b64=await processImage(files[i],900,0.72); if(b64){ bulkDrafts.push({id:rid(),photo:b64,name:'',rating:0,fav:false}); } else { bulkFails++; } }
+      catch(err){ bulkFails++; }
+    }
+  }catch(err){ scroll.innerHTML=bulkMsg('Something went wrong while importing',(err&&err.message)||String(err)); return; }
   renderBulkReview();
 }
 function renderBulkReview(){
   const scroll=document.getElementById('sheetScroll');
-  if(!bulkDrafts.length){ closeSheet(); return; }
+  if(!bulkDrafts.length){ scroll.innerHTML=bulkMsg("Couldn't read those photos", (bulkFails?bulkFails+' photos were skipped. ':'')+"They may be in a format that can't be processed here. Try taking a couple of photos with the Camera and importing those, or add a shirt one at a time."); return; }
   const rows=bulkDrafts.map(d=>`
     <div class="bulkrow" id="brow-${d.id}">
-      <img class="bulkthumb" src="${d.photo}" alt="">
+      <img class="bulkthumb" src="${d.photo}" alt="" loading="lazy">
       <div class="bulkfields">
         <input class="bulkname" placeholder="Name this shirt" value="${escAttr(d.name)}" oninput="bulkSetName('${d.id}',this.value)">
         <div class="bulkrowsub">
@@ -955,9 +978,10 @@ function renderBulkReview(){
       </div>
     </div>`).join('');
   const n=bulkDrafts.length;
+  const skipped = bulkFails? ` <span style="color:var(--amber);font-weight:700">· ${bulkFails} skipped</span>`:'';
   scroll.innerHTML=`
     <div class="bulkhead">
-      <h2>Review ${n} new shirt${n!==1?'s':''}</h2>
+      <h2>Review ${n} new shirt${n!==1?'s':''}${skipped}</h2>
       <p>Name each one now, or leave it blank and fill in later. Tags and notes can be added to any shirt afterward by tapping it.</p>
     </div>
     ${rows}
@@ -969,16 +993,18 @@ function bulkSetRating(id,n){ const d=bulkDrafts.find(x=>x.id===id); if(!d)retur
 function bulkToggleFav(id,btn){ const d=bulkDrafts.find(x=>x.id===id); if(!d)return; d.fav=!d.fav; if(btn) btn.classList.toggle('on',d.fav); }
 function bulkRemove(id){ bulkDrafts=bulkDrafts.filter(x=>x.id!==id); if(!bulkDrafts.length){ closeSheet(); return; } renderBulkReview(); }
 function commitBulk(){
-  if(!bulkDrafts.length){ closeSheet(); return; }
-  const n=bulkDrafts.length;
-  bulkDrafts.forEach(d=>{
-    const s={ id:rid(), name:(d.name||'').trim(), notes:'', tags:[], rating:d.rating||0, fav:!!d.fav, photo:d.photo||'', wears:[], createdAt:now() };
-    S.shirts.push(s); queuePhotoPush(s.id);
-  });
-  bulkDrafts=[];
-  persist();
-  closeSheet(); UI.view='closet'; UI.favOnly=false; window.scrollTo(0,0); render();
-  toast(`👕 Added ${n} shirt${n!==1?'s':''}`, true);
+  try{
+    if(!bulkDrafts.length){ closeSheet(); return; }
+    const n=bulkDrafts.length;
+    bulkDrafts.forEach(d=>{
+      const s={ id:rid(), name:(d.name||'').trim(), notes:'', tags:[], rating:d.rating||0, fav:!!d.fav, photo:d.photo||'', wears:[], createdAt:now() };
+      S.shirts.push(s); queuePhotoPush(s.id);
+    });
+    bulkDrafts=[];
+    persist();
+    closeSheet(); UI.view='closet'; UI.favOnly=false; window.scrollTo(0,0); render();
+    toast(`👕 Added ${n} shirt${n!==1?'s':''}`, true);
+  }catch(err){ toast('Add failed: '+((err&&err.message)||err)); }
 }
 
 /* =====================================================================
